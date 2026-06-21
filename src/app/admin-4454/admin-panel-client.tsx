@@ -62,8 +62,8 @@ export function AdminPanelClient({ authenticated }: Props) {
         <div className="relative z-10 w-full max-w-sm px-4">
           <div className="pixel-card rounded-sm p-6 sm:p-8">
             <div className="mb-6 text-center">
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-sm border-2 border-primary bg-primary/15">
-                <Shield className="h-7 w-7 neon-pink" />
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-lg overflow-hidden border-2 border-gray-200">
+                <img src="/logo.png" alt="Logo" className="h-full w-full object-cover" />
               </div>
               <h1
                 className="text-sm neon-pink sm:text-base"

@@ -12,7 +12,6 @@ interface Props {
   totalEntities: number;
 }
 
-// Data counts pulled from DB at render time — uses actual entity counts
 const CATEGORY_META: Record<string, { emoji: string; label: string; color: string; route: string }> = {
   age:        { emoji: "🎂", label: "GUESS MY AGE",     color: "#8b5cf6", route: "/category/age" },
   jobs:       { emoji: "💼", label: "GUESS MY JOB",     color: "#3b82f6", route: "/category/jobs" },
@@ -23,7 +22,6 @@ const CATEGORY_META: Record<string, { emoji: string; label: string; color: strin
 
 const CARD_ORDER = ["age", "jobs", "animals", "countries", "sports"];
 
-// ALL inactive categories shown as Coming Soon
 const COMING_SOON = [
   { name: "Characters", emoji: "🎭" },
   { name: "Movies", emoji: "🎬" },
@@ -38,7 +36,6 @@ const COMING_SOON = [
 export function HomeScreen({ categories, totalEntities }: Props) {
   const router = useRouter();
 
-  // Build a map of slug → entity count from the DB data
   const entityCounts: Record<string, number> = {};
   for (const c of categories) {
     entityCounts[c.slug] = c._count.entities;
@@ -56,7 +53,6 @@ export function HomeScreen({ categories, totalEntities }: Props) {
     if (meta) router.push(meta.route);
   };
 
-  // Helper to get count label for active categories
   const getCountLabel = (slug: string) => {
     if (slug === "age") return "38 life stages";
     const count = entityCounts[slug];
@@ -69,9 +65,9 @@ export function HomeScreen({ categories, totalEntities }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen overflow-x-hidden bg-white">
       <style>{`
-        body { background: #fafafa; }
+        body { background: #fafafa; overflow-x: hidden; }
         .luxury-bg {
           background: radial-gradient(ellipse at top, #f5f5f7 0%, #ffffff 50%, #fafafa 100%);
         }
@@ -79,102 +75,104 @@ export function HomeScreen({ categories, totalEntities }: Props) {
           transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease, border-color 0.3s ease;
         }
         .luxury-card:hover {
-          transform: translateY(-6px);
-          box-shadow: 0 16px 48px rgba(0, 0, 0, 0.10);
+          transform: translateY(-4px);
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.10);
         }
+        * { max-width: 100%; box-sizing: border-box; }
       `}</style>
 
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <h1 className="text-lg font-bold tracking-tight text-black">
+        <div className="mx-auto flex max-w-6xl items-center gap-2.5 px-4 py-3 sm:px-6 sm:py-4">
+          <img src="/logo.png" alt="Guess My Anything" className="h-8 w-8 rounded-lg sm:h-10 sm:w-10" />
+          <h1 className="text-base font-bold tracking-tight text-black sm:text-lg">
             GUESS MY ANYTHING
           </h1>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="luxury-bg px-6 py-16 text-center sm:py-24">
+      <section className="luxury-bg px-4 py-12 text-center sm:px-6 sm:py-16 lg:py-24">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="mx-auto max-w-2xl"
         >
-          <p className="mb-4 text-sm font-medium text-gray-600">
+          <p className="mb-3 text-xs font-medium text-gray-600 sm:mb-4 sm:text-sm">
             ✨ AI-POWERED GUESSING ENGINE
           </p>
-          <h2 className="mb-6 text-4xl font-bold tracking-tight text-black sm:text-6xl">
+          <h2 className="mb-5 text-3xl font-bold leading-tight tracking-tight text-black sm:mb-6 sm:text-5xl lg:text-6xl">
             THINK OF ANYTHING
           </h2>
           <button
             onClick={handlePlay}
-            className="mb-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-xl"
+            className="mb-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-xl sm:mb-6 sm:w-auto sm:px-8 sm:py-4 sm:text-base"
           >
-            🎯 PLAY NOW <ArrowRight className="h-5 w-5" />
+            🎯 PLAY NOW <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
-          <p className="mx-auto max-w-lg text-base text-gray-600">
+          <p className="mx-auto max-w-sm text-sm leading-relaxed text-gray-600 sm:max-w-lg sm:text-base">
             A job, a country, an animal, a sport, or even your own age – pick anything in your mind. I&apos;ll ask clever questions and guess it.
           </p>
         </motion.div>
       </section>
 
-      {/* Category Cards — 5 in a row */}
-      <section id="category-section" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-12">
-        <h2 className="mb-8 text-center text-2xl font-bold tracking-tight text-gray-900">
+      {/* Category Cards */}
+      <section id="category-section" className="mx-auto max-w-6xl scroll-mt-16 px-4 py-8 sm:scroll-mt-20 sm:px-6 sm:py-12">
+        <h2 className="mb-6 text-center text-xl font-bold tracking-tight text-gray-900 sm:mb-8 sm:text-2xl">
           CHOOSE A CATEGORY
         </h2>
-        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5 lg:gap-5">
           {CARD_ORDER.map((slug, i) => {
             const meta = CATEGORY_META[slug];
             return (
               <motion.button
                 key={slug}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + i * 0.08, duration: 0.4 }}
+                transition={{ delay: 0.1 + i * 0.06, duration: 0.35 }}
                 onClick={() => handleCategoryClick(slug)}
-                className="luxury-card flex flex-col items-center gap-4 rounded-2xl border-2 bg-white p-7 text-center shadow-sm"
+                className="luxury-card flex min-h-[44px] flex-col items-center gap-3 rounded-2xl border-2 bg-white p-4 text-center shadow-sm sm:p-5 lg:p-6"
                 style={{ borderColor: `${meta.color}40` }}
               >
                 <div
-                  className="flex h-20 w-20 items-center justify-center rounded-2xl text-4xl"
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl text-3xl sm:h-16 sm:w-16 sm:text-4xl lg:h-20 lg:w-20"
                   style={{ background: `${meta.color}15` }}
                 >
                   {meta.emoji}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold" style={{ color: meta.color }}>
+                  <h3 className="text-xs font-bold sm:text-sm lg:text-base" style={{ color: meta.color }}>
                     {meta.label}
                   </h3>
-                  <p className="mt-1 text-xs text-gray-500">{getCountLabel(slug)}</p>
+                  <p className="mt-1 text-[11px] text-gray-500 sm:text-xs lg:text-sm">{getCountLabel(slug)}</p>
                 </div>
               </motion.button>
             );
           })}
         </div>
 
-        {/* Coming Soon Cards — all inactive categories */}
-        <div className="mt-10">
+        {/* Coming Soon Cards */}
+        <div className="mt-8 sm:mt-10">
           <div className="mb-4 flex items-center gap-3">
             <div className="h-px flex-1 bg-gray-200" />
-            <span className="text-[10px] font-medium text-gray-400">MORE CATEGORIES COMING SOON</span>
+            <span className="text-[10px] font-medium text-gray-400 sm:text-xs">MORE CATEGORIES COMING SOON</span>
             <div className="h-px flex-1 bg-gray-200" />
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 lg:grid-cols-8">
             {COMING_SOON.map((cat, i) => (
               <motion.div
                 key={cat.name}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 + i * 0.05, duration: 0.3 }}
-                className="flex flex-col items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-center opacity-60"
+                transition={{ delay: 0.3 + i * 0.04, duration: 0.3 }}
+                className="flex flex-col items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 p-3 text-center opacity-60 sm:p-4"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-2xl">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-xl sm:h-12 sm:w-12 sm:text-2xl">
                   {cat.emoji}
                 </div>
-                <span className="text-[11px] font-medium text-gray-400">{cat.name}</span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2 py-0.5 text-[8px] font-semibold text-gray-500">
+                <span className="text-[10px] font-medium text-gray-400 sm:text-xs">{cat.name}</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2 py-0.5 text-[8px] font-semibold text-gray-500 sm:text-[9px]">
                   <Lock className="h-2.5 w-2.5" /> SOON
                 </span>
               </motion.div>
@@ -184,8 +182,8 @@ export function HomeScreen({ categories, totalEntities }: Props) {
       </section>
 
       {/* SEO content */}
-      <section className="mx-auto max-w-2xl px-6 py-12 text-center">
-        <h2 className="mb-3 text-lg font-semibold text-gray-800">
+      <section className="mx-auto max-w-2xl px-4 py-8 text-center sm:px-6 sm:py-12">
+        <h2 className="mb-3 text-base font-semibold text-gray-800 sm:text-lg">
           The AI-Powered Guessing Game That Reads Your Mind
         </h2>
         <p className="text-sm leading-relaxed text-gray-600">
@@ -194,16 +192,16 @@ export function HomeScreen({ categories, totalEntities }: Props) {
       </section>
 
       {/* Footer */}
-      <footer className="mt-auto bg-gray-900 px-6 py-5">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 sm:flex-row">
+      <footer className="mt-auto bg-gray-900 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 sm:flex-row sm:gap-2">
           <p className="text-xs text-gray-500">© 2026 Guess My Anything</p>
-          <nav className="flex flex-wrap items-center justify-center gap-3 text-xs text-gray-500">
+          <nav className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-gray-500">
             <a href="/about" className="transition-colors hover:text-white">About</a>
-            <span className="text-gray-700">|</span>
+            <span className="hidden text-gray-700 sm:inline">|</span>
             <a href="/privacy" className="transition-colors hover:text-white">Privacy Policy</a>
-            <span className="text-gray-700">|</span>
+            <span className="hidden text-gray-700 sm:inline">|</span>
             <a href="/terms" className="transition-colors hover:text-white">Terms of Service</a>
-            <span className="text-gray-700">|</span>
+            <span className="hidden text-gray-700 sm:inline">|</span>
             <a href="/contact" className="transition-colors hover:text-white">Contact Us</a>
           </nav>
         </div>

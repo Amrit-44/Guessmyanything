@@ -12,9 +12,12 @@ export function LegalPage({ title, children }: Props) {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="text-lg font-bold tracking-tight text-black transition-colors hover:text-indigo-600">
-            GUESS MY ANYTHING
+        <div className="mx-auto flex max-w-6xl items-center gap-2.5 px-4 py-3 sm:px-6 sm:py-4">
+          <Link href="/" className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="Guess My Anything" className="h-8 w-8 rounded-lg sm:h-10 sm:w-10" />
+            <span className="text-base font-bold tracking-tight text-black transition-colors hover:text-indigo-600 sm:text-lg">
+              GUESS MY ANYTHING
+            </span>
           </Link>
         </div>
       </header>
