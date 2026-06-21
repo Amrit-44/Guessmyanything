@@ -1,0 +1,538 @@
+     1→/**
+     2→ * GUESS MY JOB — Knowledge Base Upgrade
+     3→ *
+     4→ * This script ONLY touches job data. It:
+     5→ *   1. Adds new industry subcategories (Finance, Construction, Transportation,
+     6→ *      Government, Agriculture, Science, Hospitality, Legal, Manufacturing).
+     7→ *   2. Adds industry tags (industry-healthcare, etc.) to ALL job entities.
+     8→ *   3. Enriches existing jobs with deep fingerprint tags (work environment,
+     9→ *      education, income, physical, interaction, schedule, tools, stress).
+    10→ *   4. Adds 50+ rare/specialized jobs across all 14 industries.
+    11→ *   5. Adds 14 industry-probing questions (job-specific).
+    12→ *   6. Adds 40+ discriminating job questions probing rich attributes.
+    13→ *
+    14→ * Idempotent: safe to run multiple times.
+    15→ *
+    16→ * Run: bun run prisma/upgrade-jobs.ts
+    17→ */
+    18→
+    19→import { db } from "../src/lib/db";
+    20→
+    21→// ------------------------------------------------------------
+    22→// Helpers
+    23→// ------------------------------------------------------------
+    24→
+    25→function slugify(s: string): string {
+    26→  return s
+    27→    .toLowerCase()
+    28→    .replace(/[^a-z0-9]+/g, "-")
+    29→    .replace(/(^-|-$)/g, "");
+    30→}
+    31→
+    32→async function ensureTag(name: string): Promise<{ id: string; slug: string }> {
+    33→  const slug = slugify(name);
+    34→  const existing = await db.tag.findUnique({ where: { slug } });
+    35→  if (existing) return { id: existing.id, slug };
+    36→  const created = await db.tag.create({ data: { name, slug } });
+    37→  return { id: created.id, slug };
+    38→}
+    39→
+    40→async function ensureSubcategory(
+    41→  categoryId: string,
+    42→  name: string,
+    43→  slug: string
+    44→): Promise<string> {
+    45→  const existing = await db.subcategory.findFirst({
+    46→    where: { slug, categoryId },
+    47→  });
+    48→  if (existing) return existing.id;
+    49→  const maxOrder = await db.subcategory.aggregate({
+    50→    where: { categoryId },
+    51→    _max: { sortOrder: true },
+    52→  });
+    53→  const created = await db.subcategory.create({
+    54→    data: {
+    55→      name,
+    56→      slug,
+    57→      categoryId,
+    58→      sortOrder: (maxOrder._max.sortOrder ?? -1) + 1,
+    59→    },
+    60→  });
+    61→  return created.id;
+    62→}
+    63→
+    64→async function ensureQuestion(
+    65→  text: string,
+    66→  tagSlug: string,
+    67→  categoryId: string
+    68→): Promise<void> {
+    69→  const existing = await db.question.findFirst({ where: { text } });
+    70→  if (existing) return;
+    71→  const tag = await ensureTag(tagSlug);
+    72→  await db.question.create({
+    73→    data: {
+    74→      text,
+    75→      primaryTagId: tag.id,
+    76→      categoryId,
+    77→      inverted: false,
+    78→    },
+    79→  });
+    80→}
+    81→
+    82→async function addTagsToEntity(
+    83→  entityId: string,
+    84→  tagNames: string[]
+    85→): Promise<void> {
+    86→  for (const name of tagNames) {
+    87→    const tag = await ensureTag(name);
+    88→    const exists = await db.entityTag.findUnique({
+    89→      where: { entityId_tagId: { entityId, tagId: tag.id } },
+    90→    });
+    91→    if (!exists) {
+    92→      await db.entityTag.create({
+    93→        data: { entityId, tagId: tag.id, weight: 1 },
+    94→      });
+    95→    }
+    96→  }
+    97→}
+    98→
+    99→async function createEntity(
+   100→  name: string,
+   101→  categoryId: string,
+   102→  subcategoryId: string | null,
+   103→  description: string,
+   104→  tags: string[],
+   105→  popularity: number,
+   106→  difficulty: number
+   107→): Promise<void> {
+   108→  const slug = slugify(name);
+   109→  const existing = await db.entity.findUnique({
+   110→    where: { categoryId_slug: { categoryId, slug } },
+   111→  });
+   112→  if (existing) {
+   113→    // Just add missing tags
+   114→    await addTagsToEntity(existing.id, tags);
+   115→    return;
+   116→  }
+   117→
+   118→  const tagSlugs: string[] = [];
+   119→  const tagIds: string[] = [];
+   120→  for (const t of tags) {
+   121→    const tag = await ensureTag(t);
+   122→    tagSlugs.push(tag.slug);
+   123→    tagIds.push(tag.id);
+   124→  }
+   125→
+   126→  await db.entity.create({
+   127→    data: {
+   128→      name,
+   129→      slug,
+   130→      description,
+   131→      categoryId,
+   132→      subcategoryId,
+   133→      difficulty,
+   134→      popularity,
+   135→      tagCache: tagSlugs.join(","),
+   136→      tags: {
+   137→        create: tagIds.map((id) => ({ tagId: id, weight: 1 })),
+   138→      },
+   139→    },
+   140→  });
+   141→}
+   142→
+   143→// ------------------------------------------------------------
+   144→// Industry → subcategory mapping for existing jobs
+   145→// Each entry: [jobName, industryTagSlug, newSubcategorySlug]
+   146→// ------------------------------------------------------------
+   147→
+   148→const EXISTING_JOB_INDUSTRY: { name: string; industry: string; sub: string }[] = [
+   149→  { name: "Doctor", industry: "industry-healthcare", sub: "healthcare" },
+   150→  { name: "Nurse", industry: "industry-healthcare", sub: "healthcare" },
+   151→  { name: "Surgeon", industry: "industry-healthcare", sub: "healthcare" },
+   152→  { name: "Dentist", industry: "industry-healthcare", sub: "healthcare" },
+   153→  { name: "Veterinarian", industry: "industry-healthcare", sub: "healthcare" },
+   154→  { name: "Software Engineer", industry: "industry-technology", sub: "technology" },
+   155→  { name: "Data Scientist", industry: "industry-technology", sub: "technology" },
+   156→  { name: "Web Developer", industry: "industry-technology", sub: "technology" },
+   157→  { name: "Teacher", industry: "industry-education", sub: "education" },
+   158→  { name: "Professor", industry: "industry-education", sub: "education" },
+   159→  { name: "Actor", industry: "industry-arts", sub: "arts-media" },
+   160→  { name: "Musician", industry: "industry-arts", sub: "arts-media" },
+   161→  { name: "Painter", industry: "industry-arts", sub: "arts-media" },
+   162→  { name: "Chef", industry: "industry-hospitality", sub: "arts-media" },
+   163→  { name: "Writer", industry: "industry-arts", sub: "arts-media" },
+   164→  { name: "Electrician", industry: "industry-construction", sub: "trades" },
+   165→  { name: "Plumber", industry: "industry-construction", sub: "trades" },
+   166→  { name: "Carpenter", industry: "industry-construction", sub: "trades" },
+   167→  { name: "Mechanic", industry: "industry-manufacturing", sub: "trades" },
+   168→  { name: "Farmer", industry: "industry-agriculture", sub: "trades" },
+   169→  { name: "Lawyer", industry: "industry-legal", sub: "business-law" },
+   170→  { name: "Accountant", industry: "industry-finance", sub: "business-law" },
+   171→  { name: "Pilot", industry: "industry-transportation", sub: "business-law" },
+   172→  { name: "Police Officer", industry: "industry-government", sub: "business-law" },
+   173→  { name: "Firefighter", industry: "industry-government", sub: "business-law" },
+   174→];
+   175→
+   176→// ------------------------------------------------------------
+   177→// Rich tag enrichment for existing jobs
+   178→// Tags: work-environment, physical, education, income, interaction,
+   179→//        schedule, tools, stress, creativity, travel
+   180→// ------------------------------------------------------------
+   181→
+   182→const EXISTING_JOB_RICH_TAGS: Record<string, string[]> = {
+   183→  Doctor: ["indoor", "hospital", "doctorate", "high-income", "public-facing", "shift-work", "on-call", "life-or-death", "high-stress", "problem-solving", "science", "people-focused", "degree", "uniform", "precise"],
+   184→  Nurse: ["indoor", "hospital", "degree", "medium-income", "public-facing", "shift-work", "night-shift", "on-call", "life-or-death", "high-stress", "caregiving", "people-focused", "uniform", "physical"],
+   185→  Surgeon: ["indoor", "hospital", "doctorate", "high-income", "public-facing", "on-call", "life-or-death", "high-stress", "precise", "problem-solving", "science", "degree", "manual-dexterity"],
+   186→  Dentist: ["indoor", "office", "doctorate", "high-income", "public-facing", "regular-hours", "precise", "manual-dexterity", "science", "degree", "people-focused"],
+   187→  Veterinarian: ["indoor", "outdoor", "doctorate", "high-income", "public-facing", "on-call", "animal-care", "science", "degree", "problem-solving", "people-focused"],
+   188→  "Software Engineer": ["indoor", "office", "remote", "bachelors", "high-income", "solo-work", "team-work", "regular-hours", "computer", "coding", "analytical", "creative", "no-travel", "degree", "technology", "machine-focused"],
+   189→  "Data Scientist": ["indoor", "office", "remote", "masters", "high-income", "solo-work", "regular-hours", "computer", "analytical", "science", "degree", "technology", "machine-focused"],
+   190→  "Web Developer": ["indoor", "office", "remote", "bachelors", "high-income", "solo-work", "team-work", "regular-hours", "computer", "coding", "creative", "no-travel", "degree", "technology"],
+   191→  Teacher: ["indoor", "school", "bachelors", "medium-income", "public-facing", "regular-hours", "works-with-children", "creative", "people-focused", "degree", "education", "caregiving", "public-speaking"],
+   192→  Professor: ["indoor", "school", "doctorate", "high-income", "public-facing", "regular-hours", "analytical", "science", "people-focused", "degree", "education", "public-speaking", "research"],
+   193→  Actor: ["indoor", "studio", "outdoor", "variable-income", "public-facing", "irregular-hours", "creative", "arts", "people-focused", "fame-possible", "public-speaking", "no-degree"],
+   194→  Musician: ["indoor", "studio", "outdoor", "variable-income", "public-facing", "irregular-hours", "night-shift", "creative", "arts", "fame-possible", "no-degree"],
+   195→  Painter: ["indoor", "studio", "variable-income", "solo-work", "irregular-hours", "creative", "arts", "no-degree", "hands-on"],
+   196→  Chef: ["indoor", "kitchen", "certificate", "medium-income", "team-work", "shift-work", "night-shift", "high-stress", "creative", "physical", "hands-on", "food", "arts", "dangerous"],
+   197→  Writer: ["indoor", "office", "remote", "variable-income", "solo-work", "irregular-hours", "creative", "arts", "no-degree", "computer"],
+   198→  Electrician: ["indoor", "outdoor", "certificate", "medium-income", "solo-work", "irregular-hours", "physical", "dangerous", "tools", "license-required", "trades", "construction-site", "manual-dexterity"],
+   199→  Plumber: ["indoor", "outdoor", "certificate", "medium-income", "solo-work", "irregular-hours", "physical", "tools", "license-required", "trades", "manual-dexterity"],
+   200→  Carpenter: ["indoor", "outdoor", "certificate", "medium-income", "physical", "creative", "tools", "hands-on", "trades", "construction-site", "manual-dexterity"],
+   201→  Mechanic: ["indoor", "certificate", "medium-income", "physical", "tools", "machinery", "trades", "manual-dexterity", "vehicles", "dangerous"],
+   202→  Farmer: ["outdoor", "no-degree", "variable-income", "physical", "early-riser", "seasonal", "machinery", "animal-care", "trades", "agriculture", "heavy-lifting", "dangerous"],
+   203→  Lawyer: ["indoor", "office", "doctorate", "high-income", "public-facing", "client-facing", "regular-hours", "high-stress", "analytical", "problem-solving", "degree", "law", "public-speaking", "license-required"],
+   204→  Accountant: ["indoor", "office", "bachelors", "high-income", "client-facing", "regular-hours", "computer", "analytical", "degree", "finance", "license-required", "sedentary"],
+   205→  Pilot: ["vehicle", "bachelors", "high-income", "irregular-hours", "night-shift", "high-stress", "life-or-death", "license-required", "machinery", "frequent-travel", "degree", "uniform", "dangerous", "transportation"],
+   206→  "Police Officer": ["outdoor", "indoor", "certificate", "medium-income", "public-facing", "shift-work", "night-shift", "dangerous", "life-or-death", "high-stress", "physical", "uniform", "weapons", "law", "license-required"],
+   207→  Firefighter: ["outdoor", "certificate", "medium-income", "shift-work", "night-shift", "dangerous", "life-or-death", "high-stress", "physical", "uniform", "team-work", "heavy-lifting", "government"],
+   208→};
+   209→
+   210→// ------------------------------------------------------------
+   211→// NEW RARE & SPECIALIZED JOBS (Fix #7)
+   212→// Each: name, industry, subcategory, description, tags, popularity, difficulty
+   213→// ------------------------------------------------------------
+   214→
+   215→interface NewJob {
+   216→  name: string;
+   217→  industry: string; // industry tag slug
+   218→  sub: string; // subcategory slug
+   219→  description: string;
+   220→  tags: string[];
+   221→  popularity: number;
+   222→  difficulty: number;
+   223→}
+   224→
+   225→const NEW_JOBS: NewJob[] = [
+   226→  // --- Healthcare ---
+   227→  { name: "Paramedic", industry: "industry-healthcare", sub: "healthcare", description: "An emergency medical responder who treats patients on-site and during transport.", popularity: 72, difficulty: 2, tags: ["profession", "healthcare", "industry-healthcare", "degree", "outdoor", "indoor", "vehicle", "shift-work", "night-shift", "on-call", "life-or-death", "high-stress", "physical", "uniform", "people-focused", "caregiving", "dangerous", "manual-dexterity"] },
+   228→  { name: "Pharmacist", industry: "industry-healthcare", sub: "healthcare", description: "A professional who dispenses medications and advises patients.", popularity: 68, difficulty: 2, tags: ["profession", "healthcare", "industry-healthcare", "doctorate", "indoor", "office", "high-income", "public-facing", "regular-hours", "science", "degree", "people-focused", "license-required", "precise", "sedentary"] },
+   229→  { name: "Radiologist", industry: "industry-healthcare", sub: "healthcare", description: "A doctor who interprets medical imaging like X-rays and MRIs.", popularity: 55, difficulty: 4, tags: ["profession", "healthcare", "industry-healthcare", "doctorate", "indoor", "hospital", "high-income", "solo-work", "regular-hours", "science", "degree", "computer", "analytical", "machine-focused", "precise", "license-required"] },
+   230→  { name: "Physical Therapist", industry: "industry-healthcare", sub: "healthcare", description: "A healthcare professional who helps patients recover mobility.", popularity: 65, difficulty: 2, tags: ["profession", "healthcare", "industry-healthcare", "degree", "indoor", "office", "medium-income", "public-facing", "regular-hours", "physical", "people-focused", "caregiving", "manual-dexterity", "hands-on"] },
+   231→  { name: "Optometrist", industry: "industry-healthcare", sub: "healthcare", description: "A doctor who examines eyes and prescribes vision corrections.", popularity: 50, difficulty: 3, tags: ["profession", "healthcare", "industry-healthcare", "doctorate", "indoor", "office", "high-income", "public-facing", "regular-hours", "science", "degree", "people-focused", "license-required", "precise", "instruments"] },
+   232→  { name: "Phlebotomist", industry: "industry-healthcare", sub: "healthcare", description: "A technician who draws blood for testing.", popularity: 40, difficulty: 4, tags: ["profession", "healthcare", "industry-healthcare", "certificate", "indoor", "hospital", "low-income", "public-facing", "regular-hours", "people-focused", "instruments", "precise", "manual-dexterity"] },
+   233→
+   234→  // --- Technology ---
+   235→  { name: "DevOps Engineer", industry: "industry-technology", sub: "technology", description: "An engineer who automates deployment and infrastructure.", popularity: 62, difficulty: 3, tags: ["profession", "technology", "industry-technology", "bachelors", "indoor", "office", "remote", "high-income", "solo-work", "team-work", "regular-hours", "computer", "coding", "analytical", "degree", "machine-focused"] },
+   236→  { name: "Cybersecurity Analyst", industry: "industry-technology", sub: "technology", description: "A professional who protects systems from cyber threats.", popularity: 60, difficulty: 3, tags: ["profession", "technology", "industry-technology", "bachelors", "indoor", "office", "remote", "high-income", "solo-work", "regular-hours", "computer", "analytical", "degree", "on-call", "high-stress", "problem-solving"] },
+   237→  { name: "AI Researcher", industry: "industry-technology", sub: "technology", description: "A scientist who develops artificial intelligence algorithms.", popularity: 55, difficulty: 5, tags: ["profession", "technology", "industry-technology", "doctorate", "indoor", "office", "remote", "high-income", "solo-work", "regular-hours", "computer", "analytical", "science", "degree", "research", "creative", "problem-solving"] },
+   238→  { name: "Blockchain Developer", industry: "industry-technology", sub: "technology", description: "A developer who builds decentralized applications.", popularity: 48, difficulty: 4, tags: ["profession", "technology", "industry-technology", "bachelors", "indoor", "office", "remote", "high-income", "solo-work", "irregular-hours", "computer", "coding", "analytical", "degree", "creative"] },
+   239→
+   240→  // --- Education ---
+   241→  { name: "Librarian", industry: "industry-education", sub: "education", description: "A professional who manages library collections and helps patrons.", popularity: 55, difficulty: 3, tags: ["profession", "education", "industry-education", "masters", "indoor", "school", "medium-income", "public-facing", "regular-hours", "solo-work", "analytical", "degree", "people-focused", "sedentary", "computer"] },
+   242→  { name: "School Counselor", industry: "industry-education", sub: "education", description: "A professional who guides students' academic and emotional wellbeing.", popularity: 50, difficulty: 3, tags: ["profession", "education", "industry-education", "masters", "indoor", "school", "medium-income", "public-facing", "regular-hours", "people-focused", "degree", "caregiving", "works-with-children", "problem-solving"] },
+   243→  { name: "Tutor", industry: "industry-education", sub: "education", description: "An instructor who provides one-on-one academic help.", popularity: 45, difficulty: 2, tags: ["profession", "education", "industry-education", "bachelors", "indoor", "remote", "variable-income", "public-facing", "irregular-hours", "people-focused", "creative", "no-travel", "degree"] },
+   244→
+   245→  // --- Business ---
+   246→  { name: "Entrepreneur", industry: "industry-business", sub: "business-law", description: "A person who starts and runs their own business.", popularity: 75, difficulty: 2, tags: ["profession", "business", "industry-business", "bachelors", "indoor", "office", "variable-income", "high-stress", "irregular-hours", "creative", "problem-solving", "leadership", "team-work", "public-speaking", "degree", "client-facing"] },
+   247→  { name: "HR Manager", industry: "industry-business", sub: "business-law", description: "A manager who oversees human resources and employee relations.", popularity: 58, difficulty: 2, tags: ["profession", "business", "industry-business", "bachelors", "indoor", "office", "high-income", "public-facing", "regular-hours", "people-focused", "team-work", "analytical", "degree", "leadership", "sedentary"] },
+   248→  { name: "Management Consultant", industry: "industry-business", sub: "business-law", description: "An advisor who helps organizations improve performance.", popularity: 55, difficulty: 3, tags: ["profession", "business", "industry-business", "masters", "indoor", "office", "high-income", "client-facing", "irregular-hours", "analytical", "frequent-travel", "degree", "problem-solving", "public-speaking", "high-stress"] },
+   249→  { name: "Real Estate Agent", industry: "industry-business", sub: "business-law", description: "A professional who helps clients buy and sell property.", popularity: 60, difficulty: 2, tags: ["profession", "business", "industry-business", "certificate", "indoor", "outdoor", "variable-income", "public-facing", "client-facing", "irregular-hours", "people-focused", "license-required", "local-travel", "sales"] },
+   250→
+   251→  // --- Finance ---
+   252→  { name: "Actuary", industry: "industry-finance", sub: "business-law", description: "A professional who assesses financial risk using math and statistics.", popularity: 45, difficulty: 4, tags: ["profession", "finance", "industry-finance", "bachelors", "indoor", "office", "high-income", "solo-work", "regular-hours", "computer", "analytical", "degree", "license-required", "sedentary", "math"] },
+   253→  { name: "Financial Advisor", industry: "industry-finance", sub: "business-law", description: "A professional who helps clients manage investments and finances.", popularity: 55, difficulty: 2, tags: ["profession", "finance", "industry-finance", "bachelors", "indoor", "office", "high-income", "client-facing", "regular-hours", "people-focused", "degree", "license-required", "analytical", "sedentary"] },
+   254→  { name: "Investment Banker", industry: "industry-finance", sub: "business-law", description: "A professional who advises on large financial transactions.", popularity: 52, difficulty: 3, tags: ["profession", "finance", "industry-finance", "bachelors", "indoor", "office", "high-income", "client-facing", "irregular-hours", "high-stress", "analytical", "degree", "frequent-travel", "sedentary", "team-work"] },
+   255→  { name: "Loan Officer", industry: "industry-finance", sub: "business-law", description: "A professional who evaluates and approves loan applications.", popularity: 42, difficulty: 3, tags: ["profession", "finance", "industry-finance", "bachelors", "indoor", "office", "medium-income", "client-facing", "regular-hours", "analytical", "degree", "computer", "sedentary"] },
+   256→
+   257→  // --- Construction ---
+   258→  { name: "Architect", industry: "industry-construction", sub: "trades", description: "A professional who designs buildings and structures.", popularity: 70, difficulty: 2, tags: ["profession", "construction", "industry-construction", "masters", "indoor", "office", "outdoor", "high-income", "client-facing", "regular-hours", "creative", "analytical", "degree", "license-required", "computer", "problem-solving"] },
+   259→  { name: "Civil Engineer", industry: "industry-construction", sub: "trades", description: "An engineer who designs infrastructure like roads and bridges.", popularity: 58, difficulty: 3, tags: ["profession", "construction", "industry-construction", "bachelors", "indoor", "outdoor", "high-income", "regular-hours", "analytical", "degree", "license-required", "computer", "problem-solving", "team-work"] },
+   260→  { name: "Welder", industry: "industry-construction", sub: "trades", description: "A tradesperson who joins metal parts using high heat.", popularity: 50, difficulty: 3, tags: ["profession", "construction", "industry-construction", "certificate", "indoor", "outdoor", "medium-income", "physical", "dangerous", "tools", "manual-dexterity", "trades", "construction-site", "heavy-lifting"] },
+   261→  { name: "Crane Operator", industry: "industry-construction", sub: "trades", description: "An operator who drives large construction cranes.", popularity: 38, difficulty: 4, tags: ["profession", "construction", "industry-construction", "certificate", "outdoor", "medium-income", "dangerous", "machinery", "license-required", "physical", "construction-site", "manual-dexterity", "high-stress"] },
+   262→
+   263→  // --- Transportation ---
+   264→  { name: "Truck Driver", industry: "industry-transportation", sub: "business-law", description: "A driver who transports goods over long distances.", popularity: 65, difficulty: 2, tags: ["profession", "transportation", "industry-transportation", "certificate", "vehicle", "outdoor", "medium-income", "solo-work", "irregular-hours", "night-shift", "physical", "license-required", "sedentary", "local-travel", "frequent-travel", "dangerous"] },
+   265→  { name: "Train Conductor", industry: "industry-transportation", sub: "business-law", description: "A professional who manages train operations and passengers.", popularity: 48, difficulty: 3, tags: ["profession", "transportation", "industry-transportation", "certificate", "vehicle", "medium-income", "public-facing", "shift-work", "uniform", "license-required", "team-work", "regular-hours"] },
+   266→  { name: "Air Traffic Controller", industry: "industry-transportation", sub: "business-law", description: "A professional who coordinates aircraft movements at airports.", popularity: 55, difficulty: 4, tags: ["profession", "transportation", "industry-transportation", "certificate", "indoor", "high-income", "high-stress", "life-or-death", "shift-work", "night-shift", "license-required", "analytical", "problem-solving", "sedentary", "computer"] },
+   267→  { name: "Ship Captain", industry: "industry-transportation", sub: "business-law", description: "A mariner who commands vessels at sea.", popularity: 45, difficulty: 4, tags: ["profession", "transportation", "industry-transportation", "certificate", "outdoor", "vehicle", "high-income", "high-stress", "life-or-death", "license-required", "leadership", "team-work", "frequent-travel", "irregular-hours", "uniform"] },
+   268→
+   269→  // --- Government ---
+   270→  { name: "Politician", industry: "industry-government", sub: "business-law", description: "An elected official who makes public policy decisions.", popularity: 70, difficulty: 2, tags: ["profession", "government", "industry-government", "bachelors", "indoor", "outdoor", "variable-income", "public-facing", "irregular-hours", "high-stress", "people-focused", "public-speaking", "leadership", "degree", "frequent-travel"] },
+   271→  { name: "Diplomat", industry: "industry-government", sub: "business-law", description: "An official who represents their country abroad.", popularity: 48, difficulty: 4, tags: ["profession", "government", "industry-government", "masters", "indoor", "office", "high-income", "public-facing", "irregular-hours", "international", "frequent-travel", "people-focused", "degree", "analytical", "public-speaking"] },
+   272→  { name: "Social Worker", industry: "industry-government", sub: "business-law", description: "A professional who helps people cope with challenges.", popularity: 58, difficulty: 2, tags: ["profession", "government", "industry-government", "bachelors", "indoor", "outdoor", "medium-income", "public-facing", "regular-hours", "people-focused", "caregiving", "high-stress", "degree", "problem-solving", "emotional"] },
+   273→  { name: "Postal Worker", industry: "industry-government", sub: "business-law", description: "A worker who sorts and delivers mail.", popularity: 45, difficulty: 2, tags: ["profession", "government", "industry-government", "no-degree", "outdoor", "indoor", "low-income", "physical", "regular-hours", "uniform", "early-riser", "local-travel"] },
+   274→
+   275→  // --- Agriculture ---
+   276→  { name: "Landscaper", industry: "industry-agriculture", sub: "trades", description: "A worker who designs and maintains outdoor spaces.", popularity: 52, difficulty: 2, tags: ["profession", "agriculture", "industry-agriculture", "no-degree", "outdoor", "medium-income", "physical", "seasonal", "tools", "machinery", "creative", "hands-on", "manual-dexterity", "early-riser"] },
+   277→  { name: "Beekeeper", industry: "industry-agriculture", sub: "trades", description: "A person who tends bees and harvests honey.", popularity: 30, difficulty: 5, tags: ["profession", "agriculture", "industry-agriculture", "no-degree", "outdoor", "variable-income", "solo-work", "seasonal", "animal-care", "dangerous", "physical", "specialized-training", "hands-on", "rare-job"] },
+   278→  { name: "Agricultural Scientist", industry: "industry-agriculture", sub: "trades", description: "A scientist who studies crops and farming methods.", popularity: 35, difficulty: 4, tags: ["profession", "agriculture", "industry-agriculture", "masters", "outdoor", "lab", "medium-income", "regular-hours", "analytical", "science", "degree", "research", "solo-work", "computer"] },
+   279→
+   280→  // --- Science ---
+   281→  { name: "Biologist", industry: "industry-science", sub: "trades", description: "A scientist who studies living organisms.", popularity: 55, difficulty: 3, tags: ["profession", "science", "industry-science", "doctorate", "indoor", "lab", "outdoor", "medium-income", "regular-hours", "analytical", "science", "degree", "research", "solo-work", "computer", "instruments"] },
+   282→  { name: "Chemist", industry: "industry-science", sub: "trades", description: "A scientist who studies chemical substances and reactions.", popularity: 52, difficulty: 3, tags: ["profession", "science", "industry-science", "doctorate", "indoor", "lab", "medium-income", "regular-hours", "analytical", "science", "degree", "research", "solo-work", "instruments", "dangerous", "precise"] },
+   283→  { name: "Astronomer", industry: "industry-science", sub: "trades", description: "A scientist who studies celestial objects and the universe.", popularity: 42, difficulty: 5, tags: ["profession", "science", "industry-science", "doctorate", "indoor", "office", "medium-income", "regular-hours", "analytical", "science", "degree", "research", "solo-work", "computer", "night-shift", "rare-job"] },
+   284→  { name: "Forensic Scientist", industry: "industry-science", sub: "trades", description: "A scientist who analyzes evidence for criminal investigations.", popularity: 58, difficulty: 3, tags: ["profession", "science", "industry-science", "masters", "indoor", "lab", "medium-income", "regular-hours", "analytical", "science", "degree", "problem-solving", "precise", "high-stress", "instruments", "government"] },
+   285→  { name: "Marine Biologist", industry: "industry-science", sub: "trades", description: "A scientist who studies ocean life and ecosystems.", popularity: 48, difficulty: 4, tags: ["profession", "science", "industry-science", "doctorate", "outdoor", "lab", "vehicle", "medium-income", "regular-hours", "analytical", "science", "degree", "research", "animal-care", "swimming", "frequent-travel", "rare-job"] },
+   286→
+   287→  // --- Arts ---
+   288→  { name: "Graphic Designer", industry: "industry-arts", sub: "arts-media", description: "A designer who creates visual content for brands and media.", popularity: 62, difficulty: 2, tags: ["profession", "arts", "industry-arts", "bachelors", "indoor", "office", "remote", "medium-income", "solo-work", "regular-hours", "creative", "computer", "degree", "analytical"] },
+   289→  { name: "Photographer", industry: "industry-arts", sub: "arts-media", description: "An artist who captures images for clients or publications.", popularity: 55, difficulty: 2, tags: ["profession", "arts", "industry-arts", "certificate", "indoor", "outdoor", "variable-income", "solo-work", "irregular-hours", "creative", "instruments", "no-travel", "local-travel", "freelance"] },
+   290→  { name: "Animator", industry: "industry-arts", sub: "arts-media", description: "An artist who creates moving images for film, TV, and games.", popularity: 50, difficulty: 3, tags: ["profession", "arts", "industry-arts", "bachelors", "indoor", "office", "remote", "medium-income", "solo-work", "team-work", "regular-hours", "creative", "computer", "degree", "sedentary"] },
+   291→  { name: "Fashion Designer", industry: "industry-arts", sub: "arts-media", description: "A designer who creates clothing and accessories.", popularity: 52, difficulty: 3, tags: ["profession", "arts", "industry-arts", "bachelors", "indoor", "studio", "variable-income", "creative", "hands-on", "irregular-hours", "degree", "people-focused", "manual-dexterity", "frequent-travel"] },
+   292→
+   293→  // --- Hospitality ---
+   294→  { name: "Hotel Manager", industry: "industry-hospitality", sub: "arts-media", description: "A manager who oversees hotel operations and staff.", popularity: 55, difficulty: 2, tags: ["profession", "hospitality", "industry-hospitality", "bachelors", "indoor", "medium-income", "public-facing", "shift-work", "high-stress", "leadership", "team-work", "people-focused", "degree", "problem-solving"] },
+   295→  { name: "Bartender", industry: "industry-hospitality", sub: "arts-media", description: "A professional who prepares and serves drinks at a bar.", popularity: 60, difficulty: 2, tags: ["profession", "hospitality", "industry-hospitality", "no-degree", "indoor", "kitchen", "variable-income", "public-facing", "night-shift", "irregular-hours", "physical", "creative", "people-focused", "hands-on", "license-required"] },
+   296→  { name: "Tour Guide", industry: "industry-hospitality", sub: "arts-media", description: "A guide who leads groups through attractions and sites.", popularity: 45, difficulty: 2, tags: ["profession", "hospitality", "industry-hospitality", "no-degree", "outdoor", "variable-income", "public-facing", "irregular-hours", "people-focused", "public-speaking", "local-travel", "physical", "creative"] },
+   297→  { name: "Flight Attendant", industry: "industry-hospitality", sub: "arts-media", description: "A professional who ensures passenger safety and comfort on flights.", popularity: 58, difficulty: 2, tags: ["profession", "hospitality", "industry-hospitality", "certificate", "vehicle", "medium-income", "public-facing", "irregular-hours", "night-shift", "uniform", "people-focused", "frequent-travel", "physical", "caregiving", "license-required"] },
+   298→
+   299→  // --- Legal ---
+   300→  { name: "Judge", industry: "industry-legal", sub: "business-law", description: "An official who presides over court proceedings.", popularity: 65, difficulty: 3, tags: ["profession", "legal", "industry-legal", "doctorate", "indoor", "courtroom", "high-income", "public-facing", "regular-hours", "analytical", "degree", "license-required", "leadership", "high-stress", "public-speaking", "uniform"] },
+   301→  { name: "Paralegal", industry: "industry-legal", sub: "business-law", description: "A professional who assists lawyers with legal work.", popularity: 50, difficulty: 3, tags: ["profession", "legal", "industry-legal", "associate", "indoor", "office", "medium-income", "regular-hours", "analytical", "computer", "degree", "sedentary", "research"] },
+   302→  { name: "Court Reporter", industry: "industry-legal", sub: "business-law", description: "A professional who transcribes court proceedings verbatim.", popularity: 35, difficulty: 5, tags: ["profession", "legal", "industry-legal", "certificate", "indoor", "courtroom", "medium-income", "regular-hours", "solo-work", "sedentary", "specialized-training", "precise", "license-required", "computer", "rare-job"] },
+   303→
+   304→  // --- Manufacturing ---
+   305→  { name: "Factory Worker", industry: "industry-manufacturing", sub: "trades", description: "A worker who operates machinery on a production line.", popularity: 55, difficulty: 2, tags: ["profession", "manufacturing", "industry-manufacturing", "no-degree", "indoor", "low-income", "physical", "shift-work", "repetitive", "machinery", "team-work", "dangerous", "manual-dexterity"] },
+   306→  { name: "Quality Inspector", industry: "industry-manufacturing", sub: "trades", description: "A professional who checks products for defects.", popularity: 42, difficulty: 3, tags: ["profession", "manufacturing", "industry-manufacturing", "certificate", "indoor", "medium-income", "regular-hours", "analytical", "precise", "instruments", "solo-work", "repetitive"] },
+   307→  { name: "Industrial Engineer", industry: "industry-manufacturing", sub: "trades", description: "An engineer who optimizes manufacturing processes.", popularity: 48, difficulty: 3, tags: ["profession", "manufacturing", "industry-manufacturing", "bachelors", "indoor", "outdoor", "high-income", "regular-hours", "analytical", "degree", "computer", "problem-solving", "team-work", "license-required"] },
+   308→
+   309→  // --- Ultra-rare jobs (Fix #7) ---
+   310→  { name: "Astronaut", industry: "industry-science", sub: "trades", description: "A person trained to travel and work in space.", popularity: 65, difficulty: 5, tags: ["profession", "science", "industry-science", "doctorate", "vehicle", "high-income", "life-or-death", "high-stress", "physical", "dangerous", "degree", "specialized-training", "frequent-travel", "rare-job", "uniform", "problem-solving", "science", "team-work", "public-speaking"] },
+   311→  { name: "Sommelier", industry: "industry-hospitality", sub: "arts-media", description: "A professional who specializes in wine service and pairing.", popularity: 30, difficulty: 5, tags: ["profession", "hospitality", "industry-hospitality", "certificate", "indoor", "kitchen", "medium-income", "public-facing", "client-facing", "specialized-training", "license-required", "people-focused", "creative", "rare-job", "food"] },
+   312→  { name: "Archaeologist", industry: "industry-science", sub: "trades", description: "A scientist who studies human history through excavation.", popularity: 50, difficulty: 4, tags: ["profession", "science", "industry-science", "doctorate", "outdoor", "lab", "medium-income", "regular-hours", "analytical", "science", "degree", "research", "physical", "frequent-travel", "solo-work", "instruments"] },
+   313→  { name: "Cartographer", industry: "industry-science", sub: "trades", description: "A professional who creates maps and charts.", popularity: 25, difficulty: 5, tags: ["profession", "science", "industry-science", "bachelors", "indoor", "office", "medium-income", "solo-work", "regular-hours", "analytical", "creative", "computer", "degree", "instruments", "rare-job", "precise"] },
+   314→  { name: "Underwater Welder", industry: "industry-construction", sub: "trades", description: "A specialist who welds structures underwater.", popularity: 15, difficulty: 5, tags: ["profession", "construction", "industry-construction", "certificate", "outdoor", "vehicle", "high-income", "dangerous", "life-or-death", "physical", "specialized-training", "license-required", "tools", "manual-dexterity", "swimming", "rare-job", "heavy-lifting"] },
+   315→  { name: "Volcanologist", industry: "industry-science", sub: "trades", description: "A scientist who studies volcanoes and eruptions.", popularity: 20, difficulty: 5, tags: ["profession", "science", "industry-science", "doctorate", "outdoor", "medium-income", "dangerous", "analytical", "science", "degree", "research", "physical", "frequent-travel", "solo-work", "rare-job", "instruments"] },
+   316→  { name: "Stunt Double", industry: "industry-arts", sub: "arts-media", description: "A performer who stands in for actors in dangerous scenes.", popularity: 25, difficulty: 5, tags: ["profession", "arts", "industry-arts", "no-degree", "indoor", "outdoor", "variable-income", "dangerous", "physical", "irregular-hours", "specialized-training", "creative", "rare-job", "team-work", "fame-possible"] },
+   317→  { name: "Lighthouse Keeper", industry: "industry-government", sub: "business-law", description: "A person who maintains lighthouses and aids to navigation.", popularity: 10, difficulty: 5, tags: ["profession", "government", "industry-government", "no-degree", "outdoor", "low-income", "solo-work", "night-shift", "irregular-hours", "physical", "rare-job", "specialized-training", "remote-location"] },
+   318→];
+   319→
+   320→// ------------------------------------------------------------
+   321→// INDUSTRY-PROBING QUESTIONS (14) — asked early in job mode
+   322→// ------------------------------------------------------------
+   323→
+   324→const INDUSTRY_QUESTIONS: { text: string; tag: string }[] = [
+   325→  { text: "Does this job involve healthcare or medicine?", tag: "industry-healthcare" },
+   326→  { text: "Is this a technology or software job?", tag: "industry-technology" },
+   327→  { text: "Does this job involve teaching or education?", tag: "industry-education" },
+   328→  { text: "Is this a business or management job?", tag: "industry-business" },
+   329→  { text: "Does this job involve finance or money management?", tag: "industry-finance" },
+   330→  { text: "Is this a construction or building trade job?", tag: "industry-construction" },
+   331→  { text: "Does this job involve transportation or driving?", tag: "industry-transportation" },
+   332→  { text: "Is this a government or public service job?", tag: "industry-government" },
+   333→  { text: "Does this job involve agriculture or farming?", tag: "industry-agriculture" },
+   334→  { text: "Is this a scientific research job?", tag: "industry-science" },
+   335→  { text: "Is this job in the arts or entertainment?", tag: "industry-arts" },
+   336→  { text: "Does this job involve hospitality or food service?", tag: "industry-hospitality" },
+   337→  { text: "Is this a legal or law-related job?", tag: "industry-legal" },
+   338→  { text: "Is this a manufacturing or factory job?", tag: "industry-manufacturing" },
+   339→];
+   340→
+   341→// ------------------------------------------------------------
+   342→// DISCRIMINATING JOB QUESTIONS (40+) — probe rich attributes
+   343→// ------------------------------------------------------------
+   344→
+   345→const DISCRIMINATING_QUESTIONS: { text: string; tag: string }[] = [
+   346→  // Work environment
+   347→  { text: "Does this job involve working outdoors?", tag: "outdoor" },
+   348→  { text: "Is this job primarily desk-based?", tag: "sedentary" },
+   349→  { text: "Does this job involve working in a hospital?", tag: "hospital" },
+   350→  { text: "Does this job involve working in a laboratory?", tag: "lab" },
+   351→  { text: "Does this job involve working in a kitchen?", tag: "kitchen" },
+   352→  { text: "Does this job involve working in a courtroom?", tag: "courtroom" },
+   353→  { text: "Does this job involve working in a school?", tag: "school" },
+   354→  { text: "Does this job involve working on a construction site?", tag: "construction-site" },
+   355→  { text: "Does this job involve working in a vehicle?", tag: "vehicle" },
+   356→  { text: "Can this job be done remotely from home?", tag: "remote" },
+   357→
+   358→  // Education
+   359→  { text: "Does this job require a doctoral degree?", tag: "doctorate" },
+   360→  { text: "Does this job require only a high school diploma?", tag: "no-degree" },
+   361→  { text: "Does this job require a specialized license?", tag: "license-required" },
+   362→  { text: "Does this job require a master's degree?", tag: "masters" },
+   363→
+   364→  // Income
+   365→  { text: "Is this a high-paying job?", tag: "high-income" },
+   366→  { text: "Is this a modest-paying job?", tag: "low-income" },
+   367→  { text: "Does this job have variable or freelance income?", tag: "variable-income" },
+   368→
+   369→  // Physical demands
+   370→  { text: "Does this job require heavy physical labor?", tag: "heavy-lifting" },
+   371→  { text: "Is this job physically demanding?", tag: "physical" },
+   372→  { text: "Does this job require manual dexterity?", tag: "manual-dexterity" },
+   373→  { text: "Does this job require working with your hands?", tag: "hands-on" },
+   374→
+   375→  // Interaction
+   376→  { text: "Does this job involve working with the public?", tag: "public-facing" },
+   377→  { text: "Is this primarily solo work?", tag: "solo-work" },
+   378→  { text: "Does this job involve managing other people?", tag: "leadership" },
+   379→  { text: "Does this job involve working with children?", tag: "works-with-children" },
+   380→  { text: "Does this job involve working with animals?", tag: "animal-care" },
+   381→  { text: "Does this job involve client-facing work?", tag: "client-facing" },
+   382→
+   383→  // Schedule
+   384→  { text: "Does this job require working night shifts?", tag: "night-shift" },
+   385→  { text: "Is this a 9-to-5 job with regular hours?", tag: "regular-hours" },
+   386→  { text: "Does this job require being on-call?", tag: "on-call" },
+   387→  { text: "Does this job involve shift work?", tag: "shift-work" },
+   388→
+   389→  // Stress & danger
+   390→  { text: "Does this job involve life-or-death decisions?", tag: "life-or-death" },
+   391→  { text: "Is this a dangerous job?", tag: "dangerous" },
+   392→  { text: "Is this a high-stress job?", tag: "high-stress" },
+   393→
+   394→  // Creativity & analysis
+   395→  { text: "Does this job involve creative work?", tag: "creative" },
+   396→  { text: "Is this primarily analytical work?", tag: "analytical" },
+   397→  { text: "Does this job involve repetitive tasks?", tag: "repetitive" },
+   398→  { text: "Does this job involve public speaking?", tag: "public-speaking" },
+   399→
+   400→  // Tools & travel
+   401→  { text: "Does this job involve working with computers?", tag: "computer" },
+   402→  { text: "Does this job involve writing code?", tag: "coding" },
+   403→  { text: "Does this job involve using specialized tools?", tag: "tools" },
+   404→  { text: "Does this job involve operating machinery?", tag: "machinery" },
+   405→  { text: "Does this job require frequent travel?", tag: "frequent-travel" },
+   406→  { text: "Does this job involve sales?", tag: "sales" },
+   407→  { text: "Does this job involve wearing a uniform?", tag: "uniform" },
+   408→  { text: "Does this job involve scientific research?", tag: "research" },
+   409→];
+   410→
+   411→// ------------------------------------------------------------
+   412→// Main upgrade function
+   413→// ------------------------------------------------------------
+   414→
+   415→async function upgradeJobs() {
+   416→  console.log("=== GUESS MY JOB UPGRADE ===\n");
+   417→
+   418→  const jobsCategory = await db.category.findUnique({ where: { slug: "jobs" } });
+   419→  if (!jobsCategory) {
+   420→    console.error("Jobs category not found! Run the main seed first.");
+   421→    process.exit(1);
+   422→  }
+   423→
+   424→  // --- Step 1: Add new subcategories ---
+   425→  console.log("Step 1: Adding new subcategories...");
+   426→  const newSubs = [
+   427→    { name: "Finance", slug: "finance" },
+   428→    { name: "Construction", slug: "construction" },
+   429→    { name: "Transportation", slug: "transportation" },
+   430→    { name: "Government", slug: "government" },
+   431→    { name: "Agriculture", slug: "agriculture" },
+   432→    { name: "Science", slug: "science" },
+   433→    { name: "Hospitality", slug: "hospitality" },
+   434→    { name: "Legal", slug: "legal" },
+   435→    { name: "Manufacturing", slug: "manufacturing" },
+   436→    { name: "Business", slug: "business" },
+   437→  ];
+   438→  for (const s of newSubs) {
+   439→    await ensureSubcategory(jobsCategory.id, s.name, s.slug);
+   440→  }
+   441→  console.log(`  + ${newSubs.length} subcategories ensured.\n`);
+   442→
+   443→  // --- Step 2: Add industry tags to existing jobs ---
+   444→  console.log("Step 2: Adding industry tags to existing jobs...");
+   445→  let industryTagged = 0;
+   446→  for (const mapping of EXISTING_JOB_INDUSTRY) {
+   447→    const entity = await db.entity.findFirst({
+   448→      where: { name: mapping.name, categoryId: jobsCategory.id },
+   449→    });
+   450→    if (!entity) continue;
+   451→    await addTagsToEntity(entity.id, [mapping.industry]);
+   452→    industryTagged++;
+   453→  }
+   454→  console.log(`  + ${industryTagged} existing jobs tagged with industry.\n`);
+   455→
+   456→  // --- Step 3: Enrich existing jobs with rich fingerprint tags ---
+   457→  console.log("Step 3: Enriching existing jobs with rich tags...");
+   458→  let enriched = 0;
+   459→  for (const [jobName, richTags] of Object.entries(EXISTING_JOB_RICH_TAGS)) {
+   460→    const entity = await db.entity.findFirst({
+   461→      where: { name: jobName, categoryId: jobsCategory.id },
+   462→    });
+   463→    if (!entity) continue;
+   464→    await addTagsToEntity(entity.id, richTags);
+   465→    enriched++;
+   466→  }
+   467→  console.log(`  + ${enriched} existing jobs enriched with deep tags.\n`);
+   468→
+   469→  // --- Step 4: Add new rare/specialized jobs ---
+   470→  console.log("Step 4: Adding new rare & specialized jobs...");
+   471→  let newJobsCreated = 0;
+   472→  for (const job of NEW_JOBS) {
+   473→    // Find or create subcategory
+   474→    const sub = await db.subcategory.findFirst({
+   475→      where: { slug: job.sub, categoryId: jobsCategory.id },
+   476→    });
+   477→    const subId = sub?.id ?? null;
+   478→
+   479→    // Build full tag list (includes industry tag + all specified tags)
+   480→    const allTags = [...new Set([job.industry, ...job.tags])];
+   481→
+   482→    await createEntity(
+   483→      job.name,
+   484→      jobsCategory.id,
+   485→      subId,
+   486→      job.description,
+   487→      allTags,
+   488→      job.popularity,
+   489→      job.difficulty
+   490→    );
+   491→    newJobsCreated++;
+   492→  }
+   493→  console.log(`  + ${newJobsCreated} new jobs added.\n`);
+   494→
+   495→  // --- Step 5: Add industry-probing questions ---
+   496→  console.log("Step 5: Adding industry-probing questions...");
+   497→  let industryQCreated = 0;
+   498→  for (const q of INDUSTRY_QUESTIONS) {
+   499→    await ensureQuestion(q.text, q.tag, jobsCategory.id);
+   500→    industryQCreated++;
+   501→  }
+   502→  console.log(`  + ${industryQCreated} industry questions ensured.\n`);
+   503→
+   504→  // --- Step 6: Add discriminating questions ---
+   505→  console.log("Step 6: Adding discriminating job questions...");
+   506→  let discrimQCreated = 0;
+   507→  for (const q of DISCRIMINATING_QUESTIONS) {
+   508→    await ensureQuestion(q.text, q.tag, jobsCategory.id);
+   509→    discrimQCreated++;
+   510→  }
+   511→  console.log(`  + ${discrimQCreated} discriminating questions ensured.\n`);
+   512→
+   513→  // --- Summary ---
+   514→  const totalJobs = await db.entity.count({
+   515→    where: { categoryId: jobsCategory.id, isActive: true },
+   516→  });
+   517→  const totalJobQuestions = await db.question.count({
+   518→    where: { categoryId: jobsCategory.id, isActive: true },
+   519→  });
+   520→  const totalJobTags = await db.entityTag.count({
+   521→    where: { entity: { categoryId: jobsCategory.id } },
+   522→  });
+   523→
+   524→  console.log("=== UPGRADE COMPLETE ===");
+   525→  console.log(`  Total job entities: ${totalJobs}`);
+   526→  console.log(`  Total job questions: ${totalJobQuestions}`);
+   527→  console.log(`  Total job tag associations: ${totalJobTags}`);
+   528→}
+   529→
+   530→upgradeJobs()
+   531→  .catch((e) => {
+   532→    console.error(e);
+   533→    process.exit(1);
+   534→  })
+   535→  .finally(async () => {
+   536→    await db.$disconnect();
+   537→  });
+   538→

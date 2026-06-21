@@ -1,0 +1,206 @@
+"use client";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { Cake, RotateCcw, Trophy, Frown, Share2, Send, Sparkles, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { useAgeGame } from "@/hooks/use-age-game";
+import { useSound } from "@/hooks/use-sound";
+import { AnswerButtons } from "./answer-buttons";
+import type { Answer } from "@/hooks/use-game";
+
+export function AgeGame({ onExit }: { onExit: () => void }) {
+  const game = useAgeGame();
+  const { play } = useSound();
+  const [actualAge, setActualAge] = useState("");
+  const [learned, setLearned] = useState(false);
+  const prevStatusRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!game.snapshot) return;
+    const status = game.snapshot.status;
+    const prev = prevStatusRef.current;
+    if (status !== prev) {
+      if (status === "guessing" && prev === "playing") play("guess");
+      if (status === "won") play("win");
+      if (status === "lost" && prev !== "lost") play("lose");
+      prevStatusRef.current = status;
+    }
+  }, [game.snapshot?.status, play]);
+
+  const handleAnswer = (a: Answer) => { play("answer"); game.answer(a as any); };
+  const handleShare = async () => {
+    play("tick");
+    const text = game.snapshot?.status === "won"
+      ? `Guess My Age guessed my age: ${game.snapshot?.guess?.age}!`
+      : `I stumped Guess My Age!`;
+    try { if (navigator.share) await navigator.share({ title: "Guess My Age", text }); else { await navigator.clipboard.writeText(text); toast.success("Copied!"); } } catch {}
+  };
+  const handleLearn = () => {
+    const age = Number(actualAge);
+    if (!age || age < 0 || age > 150) { toast.error("Enter a valid age (0-150)"); return; }
+    play("select"); game.learn(age); setLearned(true); toast.success("Thanks! I'll learn from this.");
+  };
+
+  if (!game.snapshot) {
+    return (
+      <div className="mx-auto w-full max-w-2xl px-4 py-12 text-center">
+        <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-purple-50">
+          <Cake className="h-10 w-10 text-purple-500" />
+        </div>
+        <h2 className="mb-2 text-2xl font-bold text-gray-900">Guess My Age</h2>
+        <p className="mx-auto mb-6 max-w-md text-sm text-gray-500">
+          Think of your age. I&apos;ll ask smart life-stage questions and narrow it down to a precise number.
+        </p>
+        <Button onClick={() => { play("start"); game.start(); }} disabled={game.loading}
+          className="h-12 gap-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700">
+          <Cake className="h-5 w-5" /> Start
+        </Button>
+        <div className="mt-4"><button onClick={onExit} className="text-xs text-gray-400 hover:text-gray-700">← Back to Categories</button></div>
+      </div>
+    );
+  }
+
+  const snap = game.snapshot;
+  return (
+    <div className="mx-auto w-full max-w-2xl px-4 py-6">
+      <div className="mb-5 flex items-center justify-between">
+        <span className="rounded-lg bg-purple-50 px-3 py-1 text-xs font-medium text-purple-600">Age Mode</span>
+        <button onClick={() => { play("tick"); game.reset(); prevStatusRef.current = null; }}
+          disabled={game.loading}
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 transition-colors hover:text-gray-800">
+          <RotateCcw className="h-3.5 w-3.5" /><span className="hidden sm:inline">Restart</span>
+        </button>
+      </div>
+      <AnimatePresence mode="wait">
+        {snap.status === "playing" && (
+          <motion.div key={`age-q-${snap.questionCount}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            {/* Range display */}
+            <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="mb-2 flex items-center justify-between text-xs">
+                <span className="font-medium text-gray-600">Estimated Age</span>
+                <span className="text-gray-400">Question {snap.questionCount}</span>
+              </div>
+              <div className="flex items-center justify-center gap-6">
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-purple-600">{snap.estimatedAge}</div>
+                  <div className="mt-1 text-[10px] text-gray-400">Estimate</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl text-gray-400">{snap.range.min}—{snap.range.max}</div>
+                  <div className="mt-1 text-[10px] text-gray-400">Range</div>
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="mb-1 flex justify-between text-xs">
+                  <span className="text-gray-400">Confidence</span>
+                  <span className="font-medium text-green-600">{snap.confidence}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                  <motion.div className="h-full rounded-full bg-green-500" animate={{ width: `${snap.confidence}%` }} />
+                </div>
+              </div>
+            </div>
+            {/* Question */}
+            <AnimatePresence mode="wait">
+              <motion.div key={snap.question?.questionId} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
+                className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs font-medium text-purple-500">Question {snap.questionCount}</p>
+                  {snap.question?.category && <span className="rounded-lg bg-gray-100 px-2 py-0.5 text-[10px] capitalize text-gray-500">{snap.question.category}</span>}
+                </div>
+                <h2 className="text-xl font-semibold leading-snug text-gray-900 sm:text-2xl">{snap.question?.text}</h2>
+              </motion.div>
+            </AnimatePresence>
+            {/* Answers */}
+            <div className="relative">
+              {game.loading && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/70 backdrop-blur-sm">
+                  <div className="flex items-center gap-2 text-sm font-medium text-purple-600">
+                    <Loader2 className="h-5 w-5 animate-spin" /> Thinking...
+                  </div>
+                </div>
+              )}
+              <AnswerButtons onAnswer={handleAnswer} disabled={game.loading} />
+            </div>
+          </motion.div>
+        )}
+        {snap.status === "guessing" && snap.guess && (
+          <motion.div key="age-guess" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
+            <p className="mb-3 text-sm font-medium text-gray-500">I think you are...</p>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+              className="mb-6 rounded-2xl border-2 border-purple-200 bg-white p-8 shadow-lg">
+              <Trophy className="mx-auto mb-3 h-12 w-12 text-purple-500" />
+              <h3 className="mb-2 text-5xl font-bold text-gray-900">{snap.guess.age}</h3>
+              <p className="text-sm text-gray-500">years old</p>
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <span className="text-xs text-gray-400">Range</span>
+                <span className="text-sm font-semibold text-indigo-600">{snap.guess.min}—{snap.guess.max}</span>
+              </div>
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <span className="text-xs text-gray-400">Confidence</span>
+                <span className="text-sm font-semibold" style={{ color: snap.guess.confidence >= 70 ? "#22c55e" : snap.guess.confidence >= 40 ? "#f59e0b" : "#6b7280" }}>{snap.guess.confidence}%</span>
+              </div>
+            </motion.div>
+            <div className="grid grid-cols-2 gap-3">
+              <Button onClick={() => { play("correct"); game.confirm(true); }} disabled={game.loading}
+                className="h-14 flex-col gap-1 rounded-xl border-2 border-green-200 bg-green-50 text-green-700 hover:bg-green-100">
+                <Sparkles className="h-4 w-4" /><span className="text-sm font-semibold">Yes! Correct</span>
+              </Button>
+              <Button onClick={() => { play("wrong"); game.confirm(false); }} disabled={game.loading}
+                className="h-14 flex-col gap-1 rounded-xl border-2 border-red-200 bg-red-50 text-red-700 hover:bg-red-100">
+                <Frown className="h-4 w-4" /><span className="text-sm font-semibold">No, wrong</span>
+              </Button>
+            </div>
+          </motion.div>
+        )}
+        {(snap.status === "won" || snap.status === "lost") && (
+          <motion.div key="age-result" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+            {snap.status === "won" ? (
+              <>
+                <Trophy className="mx-auto mb-3 h-20 w-20 text-indigo-500" />
+                <h2 className="mb-2 text-3xl font-bold text-gray-900">I got it!</h2>
+                <p className="mb-1 text-sm text-gray-500">Your age is</p>
+                <p className="mb-4 text-4xl font-bold text-purple-600">{snap.guess?.age}</p>
+              </>
+            ) : (
+              <>
+                <Frown className="mx-auto mb-3 h-20 w-20 text-gray-400" />
+                <h2 className="mb-2 text-3xl font-bold text-gray-900">I missed!</h2>
+                <p className="mb-4 text-sm text-gray-500">I guessed {snap.guess?.age}. What&apos;s your actual age?</p>
+                {!learned ? (
+                  <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <div className="mb-3 flex items-center gap-2"><Sparkles className="h-4 w-4 text-purple-500" /><span className="text-sm font-semibold text-gray-800">Teach me</span></div>
+                    <div className="flex gap-2">
+                      <Input type="number" min={0} max={150} value={actualAge} onChange={e => setActualAge(e.target.value)} placeholder="Your actual age" className="h-11 rounded-xl" />
+                      <Button onClick={handleLearn} disabled={game.loading || !actualAge} className="rounded-xl bg-purple-600 text-white hover:bg-purple-700"><Send className="h-4 w-4" /></Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-6 rounded-2xl border-2 border-green-200 bg-green-50 p-5 text-center">
+                    <Sparkles className="mx-auto mb-1 h-6 w-6 text-green-500" />
+                    <span className="text-sm font-semibold text-green-700">Learned! Thanks</span>
+                  </div>
+                )}
+              </>
+            )}
+            <div className="flex justify-center gap-2">
+              <Button onClick={() => { play("start"); game.reset(); prevStatusRef.current = null; }}
+                className="h-12 gap-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700">
+                <RotateCcw className="h-4 w-4" /> Play Again
+              </Button>
+              {snap.status === "won" && (
+                <Button onClick={handleShare} variant="outline"
+                  className="h-12 gap-2 rounded-xl border-2 border-gray-200 text-gray-700 hover:bg-gray-50">
+                  <Share2 className="h-4 w-4" /> Share
+                </Button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {game.error && <div className="mt-4 rounded-xl border-2 border-red-200 bg-red-50 p-3 text-center text-sm text-red-600">{game.error}</div>}
+    </div>
+  );
+}

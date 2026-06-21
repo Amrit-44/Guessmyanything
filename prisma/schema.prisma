@@ -1,0 +1,304 @@
+// GUESS MY ANYTHING — Scalable knowledge base & game engine schema
+// Designed for 100,000+ entities, 10,000+ questions, millions of games.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// HIERARCHICAL KNOWLEDGE TREE
+// Category -> Subcategory -> Entity
+// ============================================================
+
+model Category {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  slug         String        @unique
+  description  String?
+  icon         String?
+  color        String?
+  sortOrder    Int           @default(0)
+  subcategories Subcategory[]
+  entities     Entity[]
+  questions    Question[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Subcategory {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  categoryId  String
+  category    Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  entities    Entity[]
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([categoryId, slug])
+  @@index([categoryId])
+}
+
+// ============================================================
+// ENTITY & TAG SYSTEM (normalized for scale)
+// ============================================================
+
+model Tag {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  slug      String       @unique
+  entities  EntityTag[]
+  questions Question[]
+  createdAt DateTime     @default(now())
+
+  @@index([slug])
+}
+
+model Entity {
+  id            String       @id @default(cuid())
+  name          String
+  slug          String
+  description   String?
+  categoryId    String
+  category      Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  subcategoryId String?
+  subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id], onDelete: SetNull)
+  difficulty    Float        @default(1.0) // 1 (easy) to 5 (obscure)
+  popularity    Int          @default(50)  // tie-breaker / prior weight
+  tags          EntityTag[]
+  // Denormalized tag cache for fast question selection & scoring (comma separated)
+  tagCache      String       @default("")
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([categoryId, slug])
+  @@index([categoryId])
+  @@index([subcategoryId])
+  @@index([name])
+}
+
+model EntityTag {
+  entityId String
+  tagId    String
+  entity   Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  weight   Float  @default(1.0) // strength of association 0..1
+  createdAt DateTime @default(now())
+
+  @@id([entityId, tagId])
+  @@index([tagId])
+  @@index([entityId])
+}
+
+// ============================================================
+// QUESTION ENGINE
+// Each question probes a primary tag (and optional secondary tags).
+// Answering adjusts entity scores based on tag membership.
+// ============================================================
+
+model Question {
+  id            String       @id @default(cuid())
+  text          String
+  // The tag this question probes. Yes => entity has tag.
+  primaryTagId  String
+  primaryTag    Tag          @relation(fields: [primaryTagId], references: [id], onDelete: Cascade)
+  // Optional: restrict question to a category (null = any)
+  categoryId    String?
+  category      Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // Reverse-polarity: when answered Yes, entities WITHOUT the tag gain score.
+  inverted      Boolean      @default(false)
+  // Analytics
+  timesAsked    Int          @default(0)
+  successCount  Int          @default(0) // games where this question led to a correct guess
+  failCount     Int          @default(0)
+  avgInfoGain   Float        @default(0) // running average of balance (0..1) when asked
+  isActive      Boolean      @default(true)
+  sortOrder     Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([primaryTagId])
+  @@index([categoryId])
+}
+
+// ============================================================
+// GAME SESSIONS (active games, stored as JSON state for speed)
+// ============================================================
+
+model GameSession {
+  id            String   @id @default(cuid())
+  categoryFilter String? // null = "Anything"
+  // Scoreboard cache: JSON array of { id, name, score } sorted desc
+  scoreboard    String   @default("[]")
+  // History of { questionId, questionText, answer, tagId } in order
+  history       String   @default("[]")
+  // Set of question ids already asked
+  askedIds      String   @default("[]")
+  status        String   @default("playing") // playing | guessing | won | lost | abandoned
+  guessesMade   String   @default("[]") // JSON of guesses made
+  questionCount Int      @default(0)
+  currentGuess  String?  // JSON of current top guess being confirmed
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================================
+// COMPLETED GAMES (analytics)
+// ============================================================
+
+model GameResult {
+  id            String   @id @default(cuid())
+  category      String?  // null = Anything
+  questionCount Int
+  won           Boolean
+  // What the AI guessed
+  guessedEntity String
+  // What the user was actually thinking (filled when lost / learned)
+  correctEntity String?
+  durationSec   Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([won])
+  @@index([category])
+  @@index([createdAt])
+}
+
+// ============================================================
+// LEARNING SYSTEM — failed guesses feed knowledge base
+// ============================================================
+
+model Learning {
+  id            String   @id @default(cuid())
+  // The correct answer the user was thinking of
+  correctAnswer String
+  category      String?
+  description   String?
+  // Whether the answer already exists in DB (then we tune tags)
+  existingEntityId String?
+  // Full history: JSON of questions & answers & guesses
+  history       String
+  aiGuesses     String   // JSON array of guesses the AI made
+  status        String   @default("pending") // pending | reviewed | added | rejected
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================================
+// USER FEEDBACK
+// ============================================================
+
+model Feedback {
+  id        String   @id @default(cuid())
+  type      String   // bug | suggestion | praise | wrong_guess
+  message   String
+  context   String?  // JSON with session info
+  rating    Int?     // 1..5
+  createdAt DateTime @default(now())
+
+  @@index([type])
+}
+
+// ============================================================
+// CONFIGURABLE SETTINGS (weights, thresholds, site config)
+// ============================================================
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  type  String @default("string") // string | number | boolean | json
+  group String @default("game")   // game | seo | site
+  label String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// AGE GUESSER — numerical range estimation engine
+// ============================================================
+
+model AgeSession {
+  id            String   @id @default(cuid())
+  minAge        Int      @default(0)
+  maxAge        Int      @default(100)
+  history       String   @default("[]")
+  askedIds      String   @default("[]")
+  status        String   @default("playing")
+  questionCount Int      @default(0)
+  finalGuess    Int?
+  finalMin      Int?
+  finalMax      Int?
+  confidence    Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AgeResult {
+  id            String   @id @default(cuid())
+  questionCount Int
+  won           Boolean
+  guessedAge    Int
+  guessedMin    Int
+  guessedMax    Int
+  actualAge     Int?
+  durationSec   Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([won])
+  @@index([createdAt])
+}
+
+model AgeQuestion {
+  id          String   @id @default(cuid())
+  text        String
+  tag         String
+  category    String   @default("life_event")
+  yesMin      Int      @default(0)
+  yesMax      Int      @default(100)
+  noMin       Int      @default(0)
+  noMax       Int      @default(100)
+  isActive    Boolean  @default(true)
+  timesAsked  Int      @default(0)
+  successCount Int     @default(0)
+  avgInfoGain Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tag])
+  @@index([category])
+  @@index([isActive])
+}
+
+model AgeLearning {
+  id            String   @id @default(cuid())
+  guessedAge    Int
+  guessedMin    Int
+  guessedMax    Int
+  actualAge     Int
+  history       String
+  status        String   @default("pending")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}

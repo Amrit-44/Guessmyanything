@@ -1,0 +1,851 @@
+     1→/**
+     2→ * GUESS MY ANYTHING — Seed knowledge base
+     3→ *
+     4→ * A curated, internally-consistent dataset across 13 categories.
+     5→ * Tags are shared vocabulary so questions can probe membership.
+     6→ *
+     7→ * Run: bun run prisma/seed.ts
+     8→ */
+     9→
+    10→import { db } from "../src/lib/db";
+    11→
+    12→type EntitySeed = {
+    13→  name: string;
+    14→  sub?: string;
+    15→  tags: string[];
+    16→  description?: string;
+    17→  difficulty?: number;
+    18→  popularity?: number;
+    19→};
+    20→
+    21→type CategorySeed = {
+    22→  name: string;
+    23→  slug: string;
+    24→  icon: string;
+    25→  color: string;
+    26→  description: string;
+    27→  subs: { name: string; slug: string }[];
+    28→  entities: EntitySeed[];
+    29→};
+    30→
+    31→type QuestionSeed = {
+    32→  text: string;
+    33→  tag: string;
+    34→  inverted?: boolean;
+    35→  category?: string;
+    36→};
+    37→
+    38→// ------------------------------------------------------------
+    39→// KNOWLEDGE BASE
+    40→// ------------------------------------------------------------
+    41→
+    42→const CATEGORIES: CategorySeed[] = [
+    43→  {
+    44→    name: "Jobs & Professions",
+    45→    slug: "jobs",
+    46→    icon: "Briefcase",
+    47→    color: "#f59e0b",
+    48→    description: "Think of any job or profession — doctor, pilot, chef, and more.",
+    49→    subs: [
+    50→      { name: "Healthcare", slug: "healthcare" },
+    51→      { name: "Technology", slug: "technology" },
+    52→      { name: "Education", slug: "education" },
+    53→      { name: "Arts & Media", slug: "arts-media" },
+    54→      { name: "Trades & Labor", slug: "trades" },
+    55→      { name: "Business & Law", slug: "business-law" },
+    56→    ],
+    57→    entities: [
+    58→      { name: "Doctor", sub: "healthcare", tags: ["profession", "healthcare", "degree", "science", "indoor", "high_income", "people_focused", "uniform"], description: "A medical professional who diagnoses and treats patients.", popularity: 95 },
+    59→      { name: "Nurse", sub: "healthcare", tags: ["profession", "healthcare", "degree", "indoor", "people_focused", "uniform", "caregiving"], description: "A healthcare worker who cares for patients.", popularity: 88 },
+    60→      { name: "Surgeon", sub: "healthcare", tags: ["profession", "healthcare", "degree", "science", "indoor", "high_income", "people_focused", "precise"], description: "A doctor who performs operations.", popularity: 80 },
+    61→      { name: "Dentist", sub: "healthcare", tags: ["profession", "healthcare", "degree", "science", "indoor", "high_income", "people_focused"], description: "A doctor specializing in teeth.", popularity: 72 },
+    62→      { name: "Veterinarian", sub: "healthcare", tags: ["profession", "healthcare", "degree", "science", "animal_care", "people_focused"], description: "A doctor for animals.", popularity: 70 },
+    63→      { name: "Software Engineer", sub: "technology", tags: ["profession", "technology", "degree", "indoor", "high_income", "machine_focused", "creative"], description: "Builds software and applications.", popularity: 90 },
+    64→      { name: "Data Scientist", sub: "technology", tags: ["profession", "technology", "degree", "science", "indoor", "high_income", "machine_focused"], description: "Analyzes data to find insights.", popularity: 75 },
+    65→      { name: "Web Developer", sub: "technology", tags: ["profession", "technology", "degree", "indoor", "high_income", "machine_focused", "creative"], description: "Builds websites and web apps.", popularity: 78 },
+    66→      { name: "Teacher", sub: "education", tags: ["profession", "education", "degree", "indoor", "people_focused", "caregiving"], description: "Educates students in a school.", popularity: 92 },
+    67→      { name: "Professor", sub: "education", tags: ["profession", "education", "degree", "science", "indoor", "people_focused", "high_income"], description: "A university academic and lecturer.", popularity: 76 },
+    68→      { name: "Actor", sub: "arts-media", tags: ["profession", "arts", "creative", "famous_possible", "people_focused", "indoor"], description: "Performs roles in film, TV, or theatre.", popularity: 85 },
+    69→      { name: "Musician", sub: "arts-media", tags: ["profession", "arts", "creative", "famous_possible", "people_focused"], description: "Creates and performs music.", popularity: 82 },
+    70→      { name: "Painter", sub: "arts-media", tags: ["profession", "arts", "creative", "indoor", "solo"], description: "Creates visual art on canvas.", popularity: 60 },
+    71→      { name: "Chef", sub: "arts-media", tags: ["profession", "arts", "creative", "indoor", "physical", "food"], description: "Cooks professionally in a kitchen.", popularity: 80 },
+    72→      { name: "Writer", sub: "arts-media", tags: ["profession", "arts", "creative", "indoor", "solo"], description: "Authors books, articles, or scripts.", popularity: 70 },
+    73→      { name: "Electrician", sub: "trades", tags: ["profession", "trades", "physical", "dangerous", "machine_focused", "indoor", "outdoor"], description: "Installs and repairs electrical systems.", popularity: 65 },
+    74→      { name: "Plumber", sub: "trades", tags: ["profession", "trades", "physical", "indoor", "outdoor"], description: "Installs and repairs piping.", popularity: 63 },
+    75→      { name: "Carpenter", sub: "trades", tags: ["profession", "trades", "physical", "creative", "indoor", "outdoor", "tool"], description: "Works with wood to build structures.", popularity: 62 },
+    76→      { name: "Mechanic", sub: "trades", tags: ["profession", "trades", "physical", "machine_focused", "indoor"], description: "Repairs vehicles and engines.", popularity: 68 },
+    77→      { name: "Farmer", sub: "trades", tags: ["profession", "trades", "physical", "outdoor", "animal_care", "early_riser"], description: "Cultivates crops and raises livestock.", popularity: 66 },
+    78→      { name: "Lawyer", sub: "business-law", tags: ["profession", "law", "degree", "indoor", "high_income", "people_focused"], description: "Practices law and represents clients.", popularity: 84 },
+    79→      { name: "Accountant", sub: "business-law", tags: ["profession", "finance", "degree", "indoor", "machine_focused"], description: "Manages financial records and taxes.", popularity: 72 },
+    80→      { name: "Pilot", sub: "business-law", tags: ["profession", "transport", "degree", "high_income", "uniform", "machine_focused", "dangerous"], description: "Flies aircraft for a living.", popularity: 82 },
+    81→      { name: "Police Officer", sub: "business-law", tags: ["profession", "law", "uniform", "physical", "dangerous", "people_focused", "outdoor"], description: "Enforces the law and protects citizens.", popularity: 80 },
+    82→      { name: "Firefighter", sub: "business-law", tags: ["profession", "uniform", "physical", "dangerous", "people_focused", "outdoor"], description: "Extinguishes fires and rescues people.", popularity: 78 },
+    83→    ],
+    84→  },
+    85→  {
+    86→    name: "Characters",
+    87→    slug: "characters",
+    88→    icon: "Drama",
+    89→    color: "#ec4899",
+    90→    description: "Think of any fictional character from anime, comics, cartoons, or books.",
+    91→    subs: [
+    92→      { name: "Anime & Manga", slug: "anime" },
+    93→      { name: "Comics & Superheroes", slug: "comics" },
+    94→      { name: "Cartoons", slug: "cartoons" },
+    95→      { name: "Books & Literature", slug: "books" },
+    96→      { name: "Video Game Characters", slug: "game-chars" },
+    97→    ],
+    98→    entities: [
+    99→      { name: "Monkey D. Luffy", sub: "anime", tags: ["fictional_character", "anime", "pirate", "male", "powers", "hero", "leader", "rubber"], description: "The rubber-bodied captain of the Straw Hat Pirates.", popularity: 88 },
+   100→      { name: "Naruto Uzumaki", sub: "anime", tags: ["fictional_character", "anime", "ninja", "male", "powers", "hero", "leader", "blonde"], description: "A ninja who dreams of becoming Hokage.", popularity: 90 },
+   101→      { name: "Goku", sub: "anime", tags: ["fictional_character", "anime", "fighter", "male", "powers", "hero", "alien", "martial_arts"], description: "The Saiyan warrior from Dragon Ball.", popularity: 92 },
+   102→      { name: "Pikachu", sub: "anime", tags: ["fictional_character", "anime", "animal_like", "powers", "small", "yellow", "cute", "electric"], description: "The electric mouse Pokémon.", popularity: 95 },
+   103→      { name: "Light Yagami", sub: "anime", tags: ["fictional_character", "anime", "male", "villain", "smart", "student", "dark"], description: "The protagonist of Death Note.", popularity: 70 },
+   104→      { name: "Superman", sub: "comics", tags: ["fictional_character", "comics", "superhero", "male", "powers", "hero", "flying", "strong", "alien", "american_comic"], description: "The Man of Steel from DC Comics.", popularity: 95 },
+   105→      { name: "Batman", sub: "comics", tags: ["fictional_character", "comics", "superhero", "male", "hero", "rich", "dark", "gadget", "american_comic", "human"], description: "The Dark Knight of Gotham.", popularity: 96 },
+   106→      { name: "Spider-Man", sub: "comics", tags: ["fictional_character", "comics", "superhero", "male", "hero", "powers", "flying", "young", "american_comic"], description: "The web-slinging hero of Marvel.", popularity: 94 },
+   107→      { name: "Wonder Woman", sub: "comics", tags: ["fictional_character", "comics", "superhero", "female", "hero", "powers", "warrior", "royal", "american_comic"], description: "The Amazonian princess and warrior.", popularity: 88 },
+   108→      { name: "The Joker", sub: "comics", tags: ["fictional_character", "comics", "villain", "male", "dark", "smart", "american_comic", "human"], description: "Batman's chaotic nemesis.", popularity: 90 },
+   109→      { name: "Mickey Mouse", sub: "cartoons", tags: ["fictional_character", "cartoon", "animal_like", "male", "hero", "cute", "old_character", "disney", "mouse"], description: "Disney's iconic mascot mouse.", popularity: 93 },
+   110→      { name: "SpongeBob SquarePants", sub: "cartoons", tags: ["fictional_character", "cartoon", "male", "hero", "cute", "funny", "underwater", "yellow"], description: "The optimistic sea sponge of Bikini Bottom.", popularity: 89 },
+   111→      { name: "Homer Simpson", sub: "cartoons", tags: ["fictional_character", "cartoon", "male", "funny", "american", "father", "yellow"], description: "The bumbling patriarch of The Simpsons.", popularity: 85 },
+   112→      { name: "Shrek", sub: "cartoons", tags: ["fictional_character", "cartoon", "male", "hero", "ogre", "green", "funny", "movie_character"], description: "The grumpy green ogre.", popularity: 82 },
+   113→      { name: "Harry Potter", sub: "books", tags: ["fictional_character", "book_character", "male", "hero", "magic", "young", "glasses", "british", "wizard"], description: "The boy wizard of Hogwarts.", popularity: 95 },
+   114→      { name: "Sherlock Holmes", sub: "books", tags: ["fictional_character", "book_character", "male", "hero", "smart", "british", "detective", "old_character"], description: "The brilliant detective of Baker Street.", popularity: 90 },
+   115→      { name: "Frodo Baggins", sub: "books", tags: ["fictional_character", "book_character", "male", "hero", "magic", "small", "hobbit", "ring"], description: "The hobbit who carried the One Ring.", popularity: 80 },
+   116→      { name: "Hermione Granger", sub: "books", tags: ["fictional_character", "book_character", "female", "hero", "magic", "smart", "young", "british", "wizard"], description: "The brilliant witch and Harry's friend.", popularity: 88 },
+   117→      { name: "Mario", sub: "game-chars", tags: ["fictional_character", "video_game_character", "male", "hero", "plumber", "italian", "cute", "nintendo", "jumping"], description: "Nintendo's mustachioed plumber hero.", popularity: 97 },
+   118→      { name: "Link", sub: "game-chars", tags: ["fictional_character", "video_game_character", "male", "hero", "sword", "magic", "elf_like", "nintendo", "silent"], description: "The hero of Hyrule in The Legend of Zelda.", popularity: 85 },
+   119→      { name: "Lara Croft", sub: "game-chars", tags: ["fictional_character", "video_game_character", "female", "hero", "gun", "rich", "smart", "explorer", "british"], description: "The tomb-raiding archaeologist.", popularity: 78 },
+   120→    ],
+   121→  },
+   122→  {
+   123→    name: "Animals",
+   124→    slug: "animals",
+   125→    icon: "PawPrint",
+   126→    color: "#22c55e",
+   127→    description: "Think of any animal — mammal, bird, reptile, fish, or insect.",
+   128→    subs: [
+   129→      { name: "Mammals", slug: "mammals" },
+   130→      { name: "Birds", slug: "birds" },
+   131→      { name: "Reptiles & Amphibians", slug: "reptiles" },
+   132→      { name: "Fish & Sea Life", slug: "sea-life" },
+   133→      { name: "Insects & Bugs", slug: "insects" },
+   134→    ],
+   135→    entities: [
+   136→      { name: "Lion", sub: "mammals", tags: ["animal", "mammal", "carnivore", "wild", "large", "predator", "african_animal", "mane", "fast"], description: "The king of the jungle.", popularity: 92 },
+   137→      { name: "Tiger", sub: "mammals", tags: ["animal", "mammal", "carnivore", "wild", "large", "predator", "asian_animal", "striped", "fast"], description: "The largest cat species, striped and fierce.", popularity: 90 },
+   138→      { name: "Elephant", sub: "mammals", tags: ["animal", "mammal", "herbivore", "wild", "large", "african_animal", "asian_animal", "trunk", "slow", "smart"], description: "The largest land animal.", popularity: 88 },
+   139→      { name: "Dog", sub: "mammals", tags: ["animal", "mammal", "carnivore", "domestic", "pet", "loyal", "small", "medium", "pack"], description: "Man's best friend.", popularity: 96 },
+   140→      { name: "Cat", sub: "mammals", tags: ["animal", "mammal", "carnivore", "domestic", "pet", "small", "solo", "independent"], description: "A common house pet and skilled hunter.", popularity: 95 },
+   141→      { name: "Horse", sub: "mammals", tags: ["animal", "mammal", "herbivore", "domestic", "large", "fast", "farm", "riding"], description: "A domesticated rideable animal.", popularity: 85 },
+   142→      { name: "Cow", sub: "mammals", tags: ["animal", "mammal", "herbivore", "domestic", "farm", "large", "slow", "milk"], description: "A farm animal raised for milk and meat.", popularity: 80 },
+   143→      { name: "Wolf", sub: "mammals", tags: ["animal", "mammal", "carnivore", "wild", "predator", "pack", "howling", "forest_animal"], description: "The wild ancestor of dogs.", popularity: 82 },
+   144→      { name: "Bear", sub: "mammals", tags: ["animal", "mammal", "carnivore", "wild", "large", "predator", "forest_animal", "hibernates"], description: "A large powerful forest mammal.", popularity: 84 },
+   145→      { name: "Monkey", sub: "mammals", tags: ["animal", "mammal", "herbivore", "wild", "smart", "climbing", "tropical", "tail"], description: "An agile tree-dwelling primate.", popularity: 80 },
+   146→      { name: "Eagle", sub: "birds", tags: ["animal", "bird", "carnivore", "wild", "flying", "predator", "large", "fast", "keen_sight"], description: "A powerful bird of prey.", popularity: 82 },
+   147→      { name: "Penguin", sub: "birds", tags: ["animal", "bird", "carnivore", "wild", "swimming", "cold", "flightless", "black_white", "antarctic"], description: "A flightless bird of cold climates.", popularity: 85 },
+   148→      { name: "Owl", sub: "birds", tags: ["animal", "bird", "carnivore", "wild", "flying", "predator", "nocturnal", "wise"], description: "A nocturnal bird of prey.", popularity: 75 },
+   149→      { name: "Parrot", sub: "birds", tags: ["animal", "bird", "herbivore", "tropical", "flying", "colorful", "pet", "talking", "smart"], description: "A colorful tropical bird that can mimic speech.", popularity: 72 },
+   150→      { name: "Duck", sub: "birds", tags: ["animal", "bird", "omnivore", "flying", "swimming", "farm", "small", "yellow"], description: "A waterfowl that quacks.", popularity: 70 },
+   151→      { name: "Snake", sub: "reptiles", tags: ["animal", "reptile", "carnivore", "wild", "predator", "legless", "venomous_possible", "cold_blooded"], description: "A legless slithering reptile.", popularity: 78 },
+   152→      { name: "Turtle", sub: "reptiles", tags: ["animal", "reptile", "herbivore", "wild", "pet", "shell", "slow", "swimming", "cold_blooded", "long_lived"], description: "A reptile with a protective shell.", popularity: 74 },
+   153→      { name: "Crocodile", sub: "reptiles", tags: ["animal", "reptile", "carnivore", "wild", "predator", "large", "swimming", "cold_blooded", "ancient_animal"], description: "A large aquatic predatory reptile.", popularity: 76 },
+   154→      { name: "Frog", sub: "reptiles", tags: ["animal", "amphibian", "carnivore", "wild", "small", "jumping", "swimming", "green", "cold_blooded"], description: "A hopping amphibian.", popularity: 70 },
+   155→      { name: "Shark", sub: "sea-life", tags: ["animal", "fish", "carnivore", "wild", "predator", "large", "swimming", "ocean", "apex", "teeth"], description: "The apex predator of the seas.", popularity: 85 },
+   156→      { name: "Dolphin", sub: "sea-life", tags: ["animal", "mammal", "carnivore", "wild", "swimming", "ocean", "smart", "friendly", "fast"], description: "An intelligent marine mammal.", popularity: 84 },
+   157→      { name: "Whale", sub: "sea-life", tags: ["animal", "mammal", "wild", "swimming", "ocean", "large", "singing", "long_lived"], description: "The largest ocean mammal.", popularity: 82 },
+   158→      { name: "Goldfish", sub: "sea-life", tags: ["animal", "fish", "omnivore", "domestic", "pet", "small", "swimming", "orange", "freshwater"], description: "A common pet fish.", popularity: 68 },
+   159→      { name: "Octopus", sub: "sea-life", tags: ["animal", "cephalopod", "carnivore", "wild", "swimming", "ocean", "smart", "tentacles", "camouflage"], description: "An intelligent eight-armed sea creature.", popularity: 72 },
+   160→      { name: "Butterfly", sub: "insects", tags: ["animal", "insect", "herbivore", "wild", "flying", "small", "colorful", "transforming"], description: "A colorful flying insect.", popularity: 72 },
+   161→      { name: "Bee", sub: "insects", tags: ["animal", "insect", "herbivore", "wild", "flying", "small", "stinging", "honey", "striped", "useful"], description: "A honey-making flying insect.", popularity: 70 },
+   162→      { name: "Ant", sub: "insects", tags: ["animal", "insect", "omnivore", "wild", "small", "industrious", "colony", "strong"], description: "A tiny social colony insect.", popularity: 65 },
+   163→      { name: "Spider", sub: "insects", tags: ["animal", "arachnid", "carnivore", "wild", "small", "web", "eight_legs", "venomous_possible"], description: "An eight-legged web-spinning arachnid.", popularity: 68 },
+   164→    ],
+   165→  },
+   166→  {
+   167→    name: "Countries",
+   168→    slug: "countries",
+   169→    icon: "Globe",
+   170→    color: "#06b6d4",
+   171→    description: "Think of any country in the world.",
+   172→    subs: [
+   173→      { name: "Asia", slug: "asia" },
+   174→      { name: "Europe", slug: "europe" },
+   175→      { name: "Americas", slug: "americas" },
+   176→      { name: "Africa", slug: "africa" },
+   177→      { name: "Oceania", slug: "oceania" },
+   178→    ],
+   179→    entities: [
+   180→      { name: "Japan", sub: "asia", tags: ["place", "country", "asian", "island", "developed", "populous", "tech_advanced", "mountainous", "sushi", "anime_origin"], description: "An island nation in East Asia.", popularity: 95 },
+   181→      { name: "China", sub: "asia", tags: ["place", "country", "asian", "large", "populous", "developing", "old_country", "communist", "great_wall"], description: "The world's most populous country.", popularity: 92 },
+   182→      { name: "India", sub: "asia", tags: ["place", "country", "asian", "large", "populous", "developing", "tropical", "spicy_food", "ancient_place"], description: "A populous South Asian nation.", popularity: 90 },
+   183→      { name: "South Korea", sub: "asia", tags: ["place", "country", "asian", "developed", "tech_advanced", "kpop", "small"], description: "A tech-forward East Asian nation.", popularity: 85 },
+   184→      { name: "Thailand", sub: "asia", tags: ["place", "country", "asian", "tropical", "developing", "buddhist", "beaches", "spicy_food"], description: "A Southeast Asian kingdom.", popularity: 78 },
+   185→      { name: "United Kingdom", sub: "europe", tags: ["place", "country", "european", "island", "developed", "royal", "old_country", "english_speaking", "tea"], description: "A nation of four countries in NW Europe.", popularity: 93 },
+   186→      { name: "France", sub: "europe", tags: ["place", "country", "european", "developed", "romantic", "old_country", "wine", "fashion", "eiffel"], description: "A Western European nation famed for culture.", popularity: 92 },
+   187→      { name: "Germany", sub: "europe", tags: ["place", "country", "european", "developed", "old_country", "cars", "beer", "efficient"], description: "A central European economic powerhouse.", popularity: 90 },
+   188→      { name: "Italy", sub: "europe", tags: ["place", "country", "european", "developed", "romantic", "old_country", "pasta", "fashion", "mediterranean"], description: "A Mediterranean European nation.", popularity: 90 },
+   189→      { name: "Spain", sub: "europe", tags: ["place", "country", "european", "developed", "mediterranean", "sunny", "fiesta", "old_country"], description: "A sunny southwestern European nation.", popularity: 85 },
+   190→      { name: "Russia", sub: "europe", tags: ["place", "country", "european", "asian", "large", "cold", "vodka", "old_country", "largest_country"], description: "The largest country, spanning two continents.", popularity: 88 },
+   191→      { name: "United States", sub: "americas", tags: ["place", "country", "american", "large", "developed", "populous", "diverse", "powerful", "english_speaking", "capitalist"], description: "A large federal republic in North America.", popularity: 97 },
+   192→      { name: "Canada", sub: "americas", tags: ["place", "country", "american", "large", "developed", "cold", "polite", "maple", "english_speaking"], description: "A large northern North American nation.", popularity: 88 },
+   193→      { name: "Brazil", sub: "americas", tags: ["place", "country", "american", "large", "developing", "tropical", "soccer", "carnival", "portuguese_speaking", "rainforest"], description: "The largest South American nation.", popularity: 86 },
+   194→      { name: "Mexico", sub: "americas", tags: ["place", "country", "american", "developing", "sunny", "spicy_food", "spanish_speaking", "old_country"], description: "A North American nation south of the US.", popularity: 84 },
+   195→      { name: "Egypt", sub: "africa", tags: ["place", "country", "african", "developing", "desert", "ancient_place", "pyramids", "hot", "arabic_speaking"], description: "A North African nation of ancient wonders.", popularity: 85 },
+   196→      { name: "South Africa", sub: "africa", tags: ["place", "country", "african", "developing", "diverse", "safari", "sunny", "diamonds"], description: "The southernmost African nation.", popularity: 78 },
+   197→      { name: "Nigeria", sub: "africa", tags: ["place", "country", "african", "populous", "developing", "tropical", "oil"], description: "The most populous African nation.", popularity: 72 },
+   198→      { name: "Kenya", sub: "africa", tags: ["place", "country", "african", "developing", "safari", "wildlife", "sunny", "runner"], description: "An East African nation known for safaris.", popularity: 70 },
+   199→      { name: "Australia", sub: "oceania", tags: ["place", "country", "oceanian", "island", "large", "developed", "desert", "kangaroo", "english_speaking", "southern_hemisphere"], description: "A continent-country in the Southern Hemisphere.", popularity: 90 },
+   200→      { name: "New Zealand", sub: "oceania", tags: ["place", "country", "oceanian", "island", "developed", "scenic", "sheep", "southern_hemisphere", "small"], description: "A scenic island nation in the Pacific.", popularity: 80 },
+   201→    ],
+   202→  },
+   203→  {
+   204→    name: "Movies",
+   205→    slug: "movies",
+   206→    icon: "Film",
+   207→    color: "#a855f7",
+   208→    description: "Think of any famous movie.",
+   209→    subs: [
+   210→      { name: "Action & Adventure", slug: "action" },
+   211→      { name: "Animation", slug: "animation" },
+   212→      { name: "Sci-Fi & Fantasy", slug: "scifi-fantasy" },
+   213→      { name: "Drama & Comedy", slug: "drama-comedy" },
+   214→      { name: "Horror", slug: "horror" },
+   215→    ],
+   216→    entities: [
+   217→      { name: "The Avengers", sub: "action", tags: ["movie", "action", "superhero", "blockbuster", "marvel", "modern_movie", "ensemble"], description: "Marvel's team of superheroes.", popularity: 90 },
+   218→      { name: "The Dark Knight", sub: "action", tags: ["movie", "action", "superhero", "dark", "blockbuster", "dc_comics", "modern_movie", "critically_acclaimed"], description: "Batman faces the Joker.", popularity: 92 },
+   219→      { name: "Jurassic Park", sub: "action", tags: ["movie", "action", "scifi", "dinosaur", "blockbuster", "classic_movie", "spielberg"], description: "Dinosaurs return in a theme park.", popularity: 88 },
+   220→      { name: "Star Wars: A New Hope", sub: "scifi-fantasy", tags: ["movie", "scifi", "space", "classic_movie", "blockbuster", "franchise", "lucas"], description: "The original space opera.", popularity: 93 },
+   221→      { name: "The Lion King", sub: "animation", tags: ["movie", "animated", "disney", "family", "animal_movie", "musical", "classic_movie", "african_setting"], description: "Disney's animated savanna epic.", popularity: 92 },
+   222→      { name: "Frozen", sub: "animation", tags: ["movie", "animated", "disney", "family", "musical", "modern_movie", "ice", "princess", "female_lead"], description: "Disney's icy princess tale.", popularity: 90 },
+   223→      { name: "Toy Story", sub: "animation", tags: ["movie", "animated", "pixar", "family", "toys", "classic_movie", "buddy"], description: "Pixar's toy adventure.", popularity: 91 },
+   224→      { name: "Spirited Away", sub: "animation", tags: ["movie", "animated", "anime_movie", "ghibli", "magical", "japanese_movie", "critically_acclaimed"], description: "Miyazaki's magical anime film.", popularity: 82 },
+   225→      { name: "The Matrix", sub: "scifi-fantasy", tags: ["movie", "scifi", "action", "modern_movie", "cyberpunk", "philosophical", "blockbuster"], description: "Reality is a simulation.", popularity: 88 },
+   226→      { name: "Avatar", sub: "scifi-fantasy", tags: ["movie", "scifi", "fantasy", "blockbuster", "modern_movie", "aliens", "3d", "blue"], description: "James Cameron's blue alien epic.", popularity: 84 },
+   227→      { name: "Harry Potter and the Sorcerer's Stone", sub: "scifi-fantasy", tags: ["movie", "fantasy", "magic", "family", "franchise", "british_movie", "wizard"], description: "The boy wizard's first film.", popularity: 88 },
+   228→      { name: "The Lord of the Rings", sub: "scifi-fantasy", tags: ["movie", "fantasy", "epic", "classic_movie", "franchise", "magic", "sword", "long_movie"], description: "Tolkien's epic on screen.", popularity: 90 },
+   229→      { name: "Titanic", sub: "drama-comedy", tags: ["movie", "drama", "romance", "blockbuster", "classic_movie", "ship", "tragic", "cameron"], description: "A romance aboard the doomed ship.", popularity: 88 },
+   230→      { name: "Forrest Gump", sub: "drama-comedy", tags: ["movie", "drama", "comedy", "classic_movie", "american_movie", "heartwarming", "historical_movie"], description: "Life is like a box of chocolates.", popularity: 86 },
+   231→      { name: "The Godfather", sub: "drama-comedy", tags: ["movie", "drama", "crime", "classic_movie", "mafia", "italian_american", "critically_acclaimed", "long_movie"], description: "The Corleone crime family saga.", popularity: 88 },
+   232→      { name: "Pulp Fiction", sub: "drama-comedy", tags: ["movie", "drama", "crime", "classic_movie", "tarantino", "nonlinear", "cult"], description: "Tarantino's crime anthology.", popularity: 84 },
+   233→      { name: "The Shawshank Redemption", sub: "drama-comedy", tags: ["movie", "drama", "classic_movie", "prison", "hope", "critically_acclaimed", "american_movie"], description: "A prison tale of hope.", popularity: 87 },
+   234→      { name: "Halloween", sub: "horror", tags: ["movie", "horror", "slasher", "classic_movie", "scary", "mask", "serial_killer"], description: "Michael Myers stalks the night.", popularity: 72 },
+   235→      { name: "The Exorcist", sub: "horror", tags: ["movie", "horror", "supernatural", "classic_movie", "scary", "possession", "religious"], description: "A demonic possession classic.", popularity: 70 },
+   236→      { name: "Get Out", sub: "horror", tags: ["movie", "horror", "thriller", "modern_movie", "social_commentary", "critically_acclaimed"], description: "A modern social horror.", popularity: 78 },
+   237→    ],
+   238→  },
+   239→  {
+   240→    name: "TV Shows",
+   241→    slug: "tv-shows",
+   242→    icon: "Tv",
+   243→    color: "#8b5cf6",
+   244→    description: "Think of any popular television series.",
+   245→    subs: [
+   246→      { name: "Drama", slug: "drama" },
+   247→      { name: "Comedy & Sitcom", slug: "comedy" },
+   248→      { name: "Crime & Thriller", slug: "crime" },
+   249→      { name: "Animation & Anime", slug: "animation" },
+   250→      { name: "Reality & Sci-Fi", slug: "reality-scifi" },
+   251→    ],
+   252→    entities: [
+   253→      { name: "Breaking Bad", sub: "crime", tags: ["tv_show", "crime_drama", "modern_show", "acclaimed", "drugs", "american_show", "dark", "chemistry"], description: "A teacher turns meth kingpin.", popularity: 93 },
+   254→      { name: "Game of Thrones", sub: "drama", tags: ["tv_show", "fantasy_drama", "modern_show", "dragons", "medieval_setting", "acclaimed", "violent"], description: "A medieval fantasy power struggle.", popularity: 92 },
+   255→      { name: "Stranger Things", sub: "drama", tags: ["tv_show", "scifi_drama", "modern_show", "streaming", "netflix", "80s_setting", "supernatural", "kids"], description: "80s kids face the Upside Down.", popularity: 90 },
+   256→      { name: "Friends", sub: "comedy", tags: ["tv_show", "sitcom", "classic_show", "comedy", "american_show", "ensemble", "90s"], description: "Six friends in NYC.", popularity: 94 },
+   257→      { name: "The Office", sub: "comedy", tags: ["tv_show", "sitcom", "comedy", "mockumentary", "american_show", "office", "cringe_comedy"], description: "A paper company's office life.", popularity: 95 },
+   258→      { name: "The Simpsons", sub: "animation", tags: ["tv_show", "animated_show", "cartoon", "comedy", "long_running", "family", "yellow", "american_show"], description: "America's longest animated family.", popularity: 90 },
+   259→      { name: "Avatar: The Last Airbender", sub: "animation", tags: ["tv_show", "animated_show", "anime_style", "fantasy", "kids", "acclaimed", "elemental_powers"], description: "A young avatar masters the elements.", popularity: 88 },
+   260→      { name: "Pokemon", sub: "animation", tags: ["tv_show", "animated_show", "anime_show", "kids", "long_running", "japanese_show", "creatures", "adventure"], description: "Ash and Pikachu's adventures.", popularity: 89 },
+   261→      { name: "Sherlock", sub: "crime", tags: ["tv_show", "crime_drama", "british_show", "modern_show", "detective", "smart", "acclaimed"], description: "A modern Sherlock Holmes.", popularity: 85 },
+   262→      { name: "The Witcher", sub: "drama", tags: ["tv_show", "fantasy_drama", "modern_show", "streaming", "monsters", "magic", "sword"], description: "A monster hunter's saga.", popularity: 80 },
+   263→      { name: "Money Heist", sub: "crime", tags: ["tv_show", "crime_drama", "modern_show", "streaming", "spanish_show", "heist", "masks", "red_jumpsuits"], description: "A daring bank heist crew.", popularity: 82 },
+   264→      { name: "Squid Game", sub: "drama", tags: ["tv_show", "thriller_drama", "modern_show", "streaming", "korean_show", "deadly_games", "social_commentary"], description: "Deadly children's games for cash.", popularity: 84 },
+   265→      { name: "Lost", sub: "reality-scifi", tags: ["tv_show", "scifi_drama", "island", "mystery", "ensemble", "plane_crash", "supernatural"], description: "Survivors of a plane crash on a mysterious island.", popularity: 78 },
+   266→      { name: "Black Mirror", sub: "reality-scifi", tags: ["tv_show", "scifi_drama", "anthology", "modern_show", "dark", "technology", "british_show"], description: "Dark tech-parable anthologies.", popularity: 80 },
+   267→      { name: "Keeping Up with the Kardashians", sub: "reality-scifi", tags: ["tv_show", "reality", "american_show", "celebrity", "long_running", "drama"], description: "A famous family's reality saga.", popularity: 70 },
+   268→    ],
+   269→  },
+   270→  {
+   271→    name: "Video Games",
+   272→    slug: "video-games",
+   273→    icon: "Gamepad2",
+   274→    color: "#10b981",
+   275→    description: "Think of any popular video game.",
+   276→    subs: [
+   277→      { name: "Action & Adventure", slug: "action" },
+   278→      { name: "RPG", slug: "rpg" },
+   279→      { name: "Platformer & Puzzle", slug: "platformer" },
+   280→      { name: "Sports & Racing", slug: "sports" },
+   281→      { name: "Shooter & Strategy", slug: "shooter" },
+   282→    ],
+   283→    entities: [
+   284→      { name: "Minecraft", sub: "action", tags: ["video_game", "sandbox", "blocky", "creative", "modern_game", "multiplayer", "pc_game", "popular", "building"], description: "Build anything in a blocky world.", popularity: 96 },
+   285→      { name: "The Legend of Zelda: Breath of the Wild", sub: "action", tags: ["video_game", "action_adventure", "open_world", "nintendo", "modern_game", "fantasy", "sword", "exploration"], description: "Explore a vast open Hyrule.", popularity: 90 },
+   286→      { name: "Grand Theft Auto V", sub: "action", tags: ["video_game", "action_adventure", "open_world", "modern_game", "crime", "multiplayer", "controversial", "blockbuster_game"], description: "An open-world crime epic.", popularity: 92 },
+   287→      { name: "Fortnite", sub: "action", tags: ["video_game", "battle_royale", "multiplayer", "modern_game", "shooter", "building", "colorful", "popular"], description: "A building battle royale.", popularity: 90 },
+   288→      { name: "The Witcher 3", sub: "rpg", tags: ["video_game", "rpg", "open_world", "modern_game", "fantasy", "mature", "story_rich", "sword", "magic"], description: "A monster-hunter RPG epic.", popularity: 88 },
+   289→      { name: "Skyrim", sub: "rpg", tags: ["video_game", "rpg", "open_world", "modern_game", "fantasy", "magic", "dragons", "moddable", "pc_game"], description: "An open-world dragon fantasy.", popularity: 89 },
+   290→      { name: "Pokémon Red/Blue", sub: "rpg", tags: ["video_game", "rpg", "retro_game", "nintendo", "creatures", "turn_based", "collecting", "classic_game"], description: "Gotta catch 'em all.", popularity: 88 },
+   291→      { name: "Final Fantasy VII", sub: "rpg", tags: ["video_game", "rpg", "retro_game", "japanese_game", "fantasy", "scifi", "story_rich", "sword"], description: "A JRPG classic.", popularity: 84 },
+   292→      { name: "Super Mario Bros.", sub: "platformer", tags: ["video_game", "platformer", "retro_game", "nintendo", "classic_game", "jumping", "family", "arcade"], description: "The plumber's classic adventure.", popularity: 95 },
+   293→      { name: "Tetris", sub: "platformer", tags: ["video_game", "puzzle", "retro_game", "classic_game", "simple", "arcade", "blocks", "russian_origin"], description: "The iconic block puzzle.", popularity: 92 },
+   294→      { name: "Portal", sub: "platformer", tags: ["video_game", "puzzle", "modern_game", "first_person", "science", "witty", "portal_gun"], description: "A portal-based puzzle game.", popularity: 85 },
+   295→      { name: "Mario Kart", sub: "sports", tags: ["video_game", "racing", "nintendo", "multiplayer", "family", "colorful", "items", "fun"], description: "Nintendo's kart racer.", popularity: 90 },
+   296→      { name: "FIFA", sub: "sports", tags: ["video_game", "sports_game", "soccer", "multiplayer", "yearly_release", "realistic", "popular"], description: "The soccer simulation series.", popularity: 88 },
+   297→      { name: "Call of Duty", sub: "shooter", tags: ["video_game", "shooter", "first_person", "multiplayer", "modern_game", "military", "war", "popular"], description: "A military FPS franchise.", popularity: 89 },
+   298→      { name: "Counter-Strike", sub: "shooter", tags: ["video_game", "shooter", "first_person", "multiplayer", "pc_game", "tactical", "terrorists", "competitive"], description: "A tactical FPS classic.", popularity: 84 },
+   299→      { name: "League of Legends", sub: "shooter", tags: ["video_game", "moba", "multiplayer", "pc_game", "competitive", "fantasy", "team_based", "esports"], description: "A team-based MOBA.", popularity: 87 },
+   300→      { name: "Chess", sub: "shooter", tags: ["game", "board_game", "strategy", "classic_game", "two_player", "thinking", "royal", "old_game"], description: "The royal board game.", popularity: 85 },
+   301→    ],
+   302→  },
+   303→  {
+   304→    name: "Celebrities",
+   305→    slug: "celebrities",
+   306→    icon: "Star",
+   307→    color: "#eab308",
+   308→    description: "Think of any famous real person — actor, musician, athlete, or icon.",
+   309→    subs: [
+   310→      { name: "Actors", slug: "actors" },
+   311→      { name: "Musicians", slug: "musicians" },
+   312→      { name: "Athletes", slug: "athletes" },
+   313→      { name: "Business & Tech", slug: "business" },
+   314→      { name: "Influencers", slug: "influencers" },
+   315→    ],
+   316→    entities: [
+   317→      { name: "Leonardo DiCaprio", sub: "actors", tags: ["real_person", "celebrity", "actor", "male", "alive", "american", "famous", "oscar_winner", "environmentalist"], description: "An acclaimed American actor.", popularity: 92 },
+   318→      { name: "Tom Hanks", sub: "actors", tags: ["real_person", "celebrity", "actor", "male", "alive", "american", "famous", "oscar_winner", "likable"], description: "America's everyman actor.", popularity: 90 },
+   319→      { name: "Scarlett Johansson", sub: "actors", tags: ["real_person", "celebrity", "actor", "female", "alive", "american", "famous", "marvel"], description: "A versatile American actress.", popularity: 88 },
+   320→      { name: "Keanu Reeves", sub: "actors", tags: ["real_person", "celebrity", "actor", "male", "alive", "canadian", "famous", "action_star", "kind", "matrix"], description: "The beloved action star.", popularity: 91 },
+   321→      { name: "Morgan Freeman", sub: "actors", tags: ["real_person", "celebrity", "actor", "male", "alive", "american", "famous", "voice", "oscar_winner", "narrator"], description: "The iconic voice actor.", popularity: 85 },
+   322→      { name: "Michael Jackson", sub: "musicians", tags: ["real_person", "celebrity", "musician", "male", "dead", "american", "famous", "pop", "dancer", "king_of_pop"], description: "The King of Pop.", popularity: 93 },
+   323→      { name: "Taylor Swift", sub: "musicians", tags: ["real_person", "celebrity", "musician", "female", "alive", "american", "famous", "pop", "songwriter", "fans"], description: "A pop superstar songwriter.", popularity: 95 },
+   324→      { name: "Beyoncé", sub: "musicians", tags: ["real_person", "celebrity", "musician", "female", "alive", "american", "famous", "pop", "rnb", "diva"], description: "A pop and R&B icon.", popularity: 92 },
+   325→      { name: "Eminem", sub: "musicians", tags: ["real_person", "celebrity", "musician", "male", "alive", "american", "famous", "rap", "fast_lyrics"], description: "A rap legend.", popularity: 88 },
+   326→      { name: "Freddie Mercury", sub: "musicians", tags: ["real_person", "celebrity", "musician", "male", "dead", "british", "famous", "rock", "queen_band", "singer"], description: "Queen's legendary frontman.", popularity: 90 },
+   327→      { name: "Lionel Messi", sub: "athletes", tags: ["real_person", "celebrity", "athlete", "male", "alive", "argentinian", "famous", "soccer", "goat", "small"], description: "An Argentine soccer legend.", popularity: 94 },
+   328→      { name: "Cristiano Ronaldo", sub: "athletes", tags: ["real_person", "celebrity", "athlete", "male", "alive", "portuguese", "famous", "soccer", "fit", "rich"], description: "A Portuguese soccer superstar.", popularity: 94 },
+   329→      { name: "Michael Jordan", sub: "athletes", tags: ["real_person", "celebrity", "athlete", "male", "alive", "american", "famous", "basketball", "goat", "brand"], description: "A basketball legend.", popularity: 93 },
+   330→      { name: "Serena Williams", sub: "athletes", tags: ["real_person", "celebrity", "athlete", "female", "alive", "american", "famous", "tennis", "champion"], description: "A tennis great.", popularity: 86 },
+   331→      { name: "Usain Bolt", sub: "athletes", tags: ["real_person", "celebrity", "athlete", "male", "alive", "jamaican", "famous", "sprint", "fastest", "olympic"], description: "The fastest man alive.", popularity: 85 },
+   332→      { name: "Elon Musk", sub: "business", tags: ["real_person", "celebrity", "entrepreneur", "male", "alive", "american", "famous", "tech_billionaire", "twitter_owner", "spacex", "tesla", "controversial"], description: "A tech billionaire entrepreneur.", popularity: 94 },
+   333→      { name: "Steve Jobs", sub: "business", tags: ["real_person", "celebrity", "entrepreneur", "male", "dead", "american", "famous", "apple", "visionary", "tech"], description: "Apple's visionary co-founder.", popularity: 92 },
+   334→      { name: "Bill Gates", sub: "business", tags: ["real_person", "celebrity", "entrepreneur", "male", "alive", "american", "famous", "microsoft", "philanthropist", "tech_billionaire"], description: "Microsoft's co-founder.", popularity: 88 },
+   335→      { name: "Mark Zuckerberg", sub: "business", tags: ["real_person", "celebrity", "entrepreneur", "male", "alive", "american", "famous", "facebook", "meta", "tech_billionaire"], description: "Facebook/Meta's founder.", popularity: 84 },
+   336→      { name: "MrBeast", sub: "influencers", tags: ["real_person", "celebrity", "influencer", "male", "alive", "american", "famous", "youtube", "philanthropist", "young"], description: "A mega YouTube creator.", popularity: 90 },
+   337→    ],
+   338→  },
+   339→  {
+   340→    name: "Sports",
+   341→    slug: "sports",
+   342→    icon: "Trophy",
+   343→    color: "#ef4444",
+   344→    description: "Think of any sport — team, individual, ball, or racing.",
+   345→    subs: [
+   346→      { name: "Team Sports", slug: "team" },
+   347→      { name: "Individual Sports", slug: "individual" },
+   348→      { name: "Water & Winter", slug: "water-winter" },
+   349→      { name: "Combat & Extreme", slug: "combat" },
+   350→    ],
+   351→    entities: [
+   352→      { name: "Soccer", sub: "team", tags: ["sport", "team_sport", "ball_sport", "outdoor_sport", "olympic", "global_sport", "popular_sport", "foot"], description: "The world's most popular sport.", popularity: 96 },
+   353→      { name: "Basketball", sub: "team", tags: ["sport", "team_sport", "ball_sport", "indoor_sport", "olympic", "popular_sport", "tall", "american"], description: "A team sport of hoops.", popularity: 92 },
+   354→      { name: "American Football", sub: "team", tags: ["sport", "team_sport", "ball_sport", "outdoor_sport", "contact", "american", "popular_sport", "helmet"], description: "The NFL contact sport.", popularity: 90 },
+   355→      { name: "Baseball", sub: "team", tags: ["sport", "team_sport", "ball_sport", "outdoor_sport", "american", "bat", "popular_sport", "classic_sport"], description: "America's pastime.", popularity: 85 },
+   356→      { name: "Cricket", sub: "team", tags: ["sport", "team_sport", "ball_sport", "outdoor_sport", "bat", "british_origin", "popular_sport", "long_game", "commonwealth"], description: "A bat-and-ball sport loved by millions.", popularity: 88 },
+   357→      { name: "Volleyball", sub: "team", tags: ["sport", "team_sport", "ball_sport", "outdoor_sport", "indoor_sport", "olympic", "net", "teamwork"], description: "A net sport of sets and spikes.", popularity: 80 },
+   358→      { name: "Rugby", sub: "team", tags: ["sport", "team_sport", "ball_sport", "outdoor_sport", "contact", "british_origin", "tough", "no_pads"], description: "A tough contact team sport.", popularity: 78 },
+   359→      { name: "Tennis", sub: "individual", tags: ["sport", "individual_sport", "ball_sport", "outdoor_sport", "olympic", "racket", "popular_sport", "net"], description: "A racket sport of aces.", popularity: 88 },
+   360→      { name: "Golf", sub: "individual", tags: ["sport", "individual_sport", "ball_sport", "outdoor_sport", "club", "precision", "slow", "expensive", "scenic"], description: "A precision club sport.", popularity: 82 },
+   361→      { name: "Athletics", sub: "individual", tags: ["sport", "individual_sport", "outdoor_sport", "olympic", "running", "jumping", "throwing", "track"], description: "Track and field events.", popularity: 80 },
+   362→      { name: "Cycling", sub: "individual", tags: ["sport", "individual_sport", "outdoor_sport", "olympic", "bike", "endurance", "tour"], description: "Racing on bicycles.", popularity: 78 },
+   363→      { name: "Swimming", sub: "water-winter", tags: ["sport", "individual_sport", "water_sport", "indoor_sport", "olympic", "endurance", "pool"], description: "Racing in water.", popularity: 82 },
+   364→      { name: "Surfing", sub: "water-winter", tags: ["sport", "individual_sport", "water_sport", "outdoor_sport", "olympic", "waves", "board", "beach"], description: "Riding ocean waves.", popularity: 75 },
+   365→      { name: "Skiing", sub: "water-winter", tags: ["sport", "individual_sport", "winter_sport", "outdoor_sport", "olympic", "snow", "mountain", "fast"], description: "Gliding on snow.", popularity: 78 },
+   366→      { name: "Ice Hockey", sub: "water-winter", tags: ["sport", "team_sport", "winter_sport", "indoor_sport", "olympic", "ice", "puck", "contact", "fast"], description: "Fast team sport on ice.", popularity: 82 },
+   367→      { name: "Boxing", sub: "combat", tags: ["sport", "individual_sport", "combat_sport", "contact", "olympic", "gloves", "fighting", "ring", "tough"], description: "The sweet science of fist-fighting.", popularity: 84 },
+   368→      { name: "MMA", sub: "combat", tags: ["sport", "individual_sport", "combat_sport", "contact", "mixed", "fighting", "cage", "tough", "modern_sport"], description: "Mixed martial arts combat.", popularity: 85 },
+   369→      { name: "Formula 1", sub: "combat", tags: ["sport", "individual_sport", "racing", "motorsport", "outdoor_sport", "fast", "cars", "expensive", "global_sport"], description: "The pinnacle of motorsport.", popularity: 86 },
+   370→    ],
+   371→  },
+   372→  {
+   373→    name: "Brands",
+   374→    slug: "brands",
+   375→    icon: "ShoppingBag",
+   376→    color: "#f97316",
+   377→    description: "Think of any well-known brand or company.",
+   378→    subs: [
+   379→      { name: "Technology", slug: "tech" },
+   380→      { name: "Food & Drink", slug: "food-drink" },
+   381→      { name: "Fashion & Luxury", slug: "fashion" },
+   382→      { name: "Automotive", slug: "auto" },
+   383→      { name: "Retail & Services", slug: "retail" },
+   384→    ],
+   385→    entities: [
+   386→      { name: "Apple", sub: "tech", tags: ["brand", "tech_brand", "global_brand", "luxury_brand", "software_brand", "hardware_brand", "american_brand", "modern_brand", "premium"], description: "Maker of the iPhone and Mac.", popularity: 96 },
+   387→      { name: "Google", sub: "tech", tags: ["brand", "tech_brand", "software_brand", "global_brand", "american_brand", "modern_brand", "search", "ads"], description: "The search giant.", popularity: 95 },
+   388→      { name: "Microsoft", sub: "tech", tags: ["brand", "tech_brand", "software_brand", "hardware_brand", "global_brand", "american_brand", "old_brand", "os"], description: "Windows and Office maker.", popularity: 93 },
+   389→      { name: "Samsung", sub: "tech", tags: ["brand", "tech_brand", "hardware_brand", "global_brand", "korean_brand", "electronics", "diverse"], description: "A Korean electronics conglomerate.", popularity: 90 },
+   390→      { name: "Sony", sub: "tech", tags: ["brand", "tech_brand", "hardware_brand", "global_brand", "japanese_brand", "old_brand", "electronics", "gaming", "entertainment"], description: "A Japanese entertainment-tech giant.", popularity: 90 },
+   391→      { name: "Coca-Cola", sub: "food-drink", tags: ["brand", "drink_brand", "global_brand", "american_brand", "old_brand", "soda", "sweet", "red"], description: "The iconic soda brand.", popularity: 94 },
+   392→      { name: "McDonald's", sub: "food-drink", tags: ["brand", "food_brand", "global_brand", "american_brand", "fast_food", "old_brand", "burgers", "yellow"], description: "The golden arches fast food.", popularity: 93 },
+   393→      { name: "Starbucks", sub: "food-drink", tags: ["brand", "drink_brand", "global_brand", "american_brand", "modern_brand", "coffee", "premium"], description: "The global coffee chain.", popularity: 90 },
+   394→      { name: "Nike", sub: "fashion", tags: ["brand", "fashion_brand", "global_brand", "american_brand", "sportswear", "shoes", "swoosh", "modern_brand"], description: "The swoosh sportswear brand.", popularity: 93 },
+   395→      { name: "Adidas", sub: "fashion", tags: ["brand", "fashion_brand", "global_brand", "german_brand", "sportswear", "shoes", "stripes"], description: "The three-stripe sportswear brand.", popularity: 88 },
+   396→      { name: "Louis Vuitton", sub: "fashion", tags: ["brand", "fashion_brand", "luxury_brand", "global_brand", "french_brand", "old_brand", "bags", "expensive"], description: "A French luxury house.", popularity: 85 },
+   397→      { name: "Gucci", sub: "fashion", tags: ["brand", "fashion_brand", "luxury_brand", "global_brand", "italian_brand", "old_brand", "expensive", "logo_heavy"], description: "An Italian luxury fashion brand.", popularity: 84 },
+   398→      { name: "Toyota", sub: "auto", tags: ["brand", "car_brand", "global_brand", "japanese_brand", "old_brand", "reliable", "mass_market"], description: "A reliable Japanese automaker.", popularity: 90 },
+   399→      { name: "Tesla", sub: "auto", tags: ["brand", "car_brand", "tech_brand", "american_brand", "modern_brand", "electric", "innovative", "premium"], description: "An electric car innovator.", popularity: 89 },
+   400→      { name: "Ferrari", sub: "auto", tags: ["brand", "car_brand", "luxury_brand", "global_brand", "italian_brand", "old_brand", "sports_car", "expensive", "red"], description: "An Italian sports car maker.", popularity: 87 },
+   401→      { name: "BMW", sub: "auto", tags: ["brand", "car_brand", "luxury_brand", "global_brand", "german_brand", "old_brand", "premium", "sporty"], description: "A German premium automaker.", popularity: 86 },
+   402→      { name: "Amazon", sub: "retail", tags: ["brand", "tech_brand", "global_brand", "american_brand", "modern_brand", "ecommerce", "cloud", "delivery"], description: "The everything store.", popularity: 94 },
+   403→      { name: "Walmart", sub: "retail", tags: ["brand", "global_brand", "american_brand", "old_brand", "retail", "discount", "mass_market"], description: "A discount retail giant.", popularity: 88 },
+   404→      { name: "IKEA", sub: "retail", tags: ["brand", "global_brand", "swedish_brand", "old_brand", "furniture", "flat_pack", "affordable"], description: "Flat-pack furniture retailer.", popularity: 85 },
+   405→    ],
+   406→  },
+   407→  {
+   408→    name: "Objects",
+   409→    slug: "objects",
+   410→    icon: "Package",
+   411→    color: "#14b8a6",
+   412→    description: "Think of any common physical object.",
+   413→    subs: [
+   414→      { name: "Electronics", slug: "electronics" },
+   415→      { name: "Household", slug: "household" },
+   416→      { name: "Clothing", slug: "clothing" },
+   417→      { name: "Tools & Office", slug: "tools-office" },
+   418→      { name: "Food & Drink Items", slug: "food-items" },
+   419→    ],
+   420→    entities: [
+   421→      { name: "Smartphone", sub: "electronics", tags: ["object", "electronic", "portable", "small_object", "modern_object", "screen", "battery", "communication", "essential"], description: "A pocket-sized mobile computer.", popularity: 95 },
+   422→      { name: "Laptop", sub: "electronics", tags: ["object", "electronic", "portable", "medium_object", "modern_object", "screen", "keyboard", "battery", "work"], description: "A portable computer.", popularity: 92 },
+   423→      { name: "Television", sub: "electronics", tags: ["object", "electronic", "large_object", "screen", "household", "entertainment", "old_object", "modern_object"], description: "A screen for watching broadcasts.", popularity: 88 },
+   424→      { name: "Headphones", sub: "electronics", tags: ["object", "electronic", "portable", "small_object", "audio", "modern_object", "wearable"], description: "Personal audio listening.", popularity: 86 },
+   425→      { name: "Camera", sub: "electronics", tags: ["object", "electronic", "portable", "medium_object", "lens", "photo", "modern_object"], description: "Captures photographs.", popularity: 80 },
+   426→      { name: "Refrigerator", sub: "household", tags: ["object", "household", "large_object", "kitchen", "cold", "electric", "essential"], description: "Keeps food cold.", popularity: 82 },
+   427→      { name: "Microwave", sub: "household", tags: ["object", "household", "medium_object", "kitchen", "electric", "heating", "modern_object"], description: "Heats food quickly.", popularity: 78 },
+   428→      { name: "Sofa", sub: "household", tags: ["object", "furniture", "large_object", "soft", "living_room", "seating", "comfortable"], description: "A comfy living room seat.", popularity: 80 },
+   429→      { name: "Bed", sub: "household", tags: ["object", "furniture", "large_object", "soft", "bedroom", "sleep", "essential"], description: "Where you sleep.", popularity: 85 },
+   430→      { name: "Lamp", sub: "household", tags: ["object", "household", "small_object", "light", "electric", "indoor_object"], description: "Provides light.", popularity: 75 },
+   431→      { name: "T-Shirt", sub: "clothing", tags: ["object", "clothing", "small_object", "soft", "wearable", "casual", "cotton", "essential"], description: "A casual short-sleeve top.", popularity: 85 },
+   432→      { name: "Jeans", sub: "clothing", tags: ["object", "clothing", "small_object", "wearable", "casual", "denim", "pants", "durable"], description: "Denim trousers.", popularity: 84 },
+   433→      { name: "Sneakers", sub: "clothing", tags: ["object", "clothing", "small_object", "wearable", "shoes", "sporty", "comfortable", "rubber"], description: "Casual athletic shoes.", popularity: 86 },
+   434→      { name: "Hat", sub: "clothing", tags: ["object", "clothing", "small_object", "wearable", "head", "accessory", "sun_protection"], description: "Headwear.", popularity: 72 },
+   435→      { name: "Watch", sub: "clothing", tags: ["object", "accessory", "small_object", "wearable", "time", "old_object", "modern_object", "luxury_possible"], description: "A wrist-worn timepiece.", popularity: 78 },
+   436→      { name: "Hammer", sub: "tools-office", tags: ["object", "tool", "small_object", "metal", "wood", "hand_tool", "sharp_possible", "construction"], description: "Drives nails.", popularity: 80 },
+   437→      { name: "Scissors", sub: "tools-office", tags: ["object", "tool", "small_object", "metal", "sharp", "hand_tool", "cutting"], description: "Cuts paper and fabric.", popularity: 78 },
+   438→      { name: "Pen", sub: "tools-office", tags: ["object", "office", "small_object", "portable", "writing", "ink", "essential"], description: "Writes with ink.", popularity: 80 },
+   439→      { name: "Book", sub: "tools-office", tags: ["object", "office", "medium_object", "paper", "reading", "knowledge", "old_object", "portable"], description: "Bound pages of text.", popularity: 85 },
+   440→      { name: "Umbrella", sub: "tools-office", tags: ["object", "tool", "small_object", "portable", "folding", "rain", "fabric", "outdoor_object"], description: "Keeps rain off.", popularity: 75 },
+   441→      { name: "Pizza", sub: "food-items", tags: ["object", "food", "italian_origin", "round", "cheese", "popular_food", "hot", "savory", "shareable"], description: "A cheesy Italian flatbread.", popularity: 92 },
+   442→      { name: "Coffee", sub: "food-items", tags: ["object", "food", "drink", "hot", "brown", "caffeine", "morning", "popular_food", "aromatic"], description: "A caffeinated morning drink.", popularity: 90 },
+   443→      { name: "Burger", sub: "food-items", tags: ["object", "food", "american_origin", "meat", "bread", "popular_food", "hot", "savory", "fast_food"], description: "A meat patty in a bun.", popularity: 88 },
+   444→      { name: "Sushi", sub: "food-items", tags: ["object", "food", "japanese_origin", "rice", "fish", "cold", "popular_food", "healthy", "artful"], description: "Japanese rice and fish.", popularity: 85 },
+   445→    ],
+   446→  },
+   447→  {
+   448→    name: "Historical Figures",
+   449→    slug: "historical",
+   450→    icon: "ScrollText",
+   451→    color: "#7c3aed",
+   452→    description: "Think of any famous person from history.",
+   453→    subs: [
+   454→      { name: "Ancient World", slug: "ancient" },
+   455→      { name: "Scientists & Inventors", slug: "scientists" },
+   456→      { name: "Leaders & Rulers", slug: "leaders" },
+   457→      { name: "Artists & Thinkers", slug: "artists" },
+   458→      { name: "Modern Era", slug: "modern-era" },
+   459→    ],
+   460→    entities: [
+   461→      { name: "Albert Einstein", sub: "scientists", tags: ["real_person", "historical_figure", "scientist", "male", "dead", "german", "famous", "physics", "genius", "mustache", "modern_era"], description: "The physicist of relativity.", popularity: 95 },
+   462→      { name: "Isaac Newton", sub: "scientists", tags: ["real_person", "historical_figure", "scientist", "male", "dead", "british", "famous", "physics", "math", "gravity", "old_era"], description: "Discovered gravity and calculus.", popularity: 90 },
+   463→      { name: "Nikola Tesla", sub: "scientists", tags: ["real_person", "historical_figure", "inventor", "male", "dead", "serbian", "american", "famous", "electricity", "eccentric", "modern_era"], description: "A pioneer of electricity.", popularity: 88 },
+   464→      { name: "Marie Curie", sub: "scientists", tags: ["real_person", "historical_figure", "scientist", "female", "dead", "polish", "french", "famous", "physics", "chemistry", "nobel", "modern_era"], description: "A Nobel-winning scientist.", popularity: 85 },
+   465→      { name: "Charles Darwin", sub: "scientists", tags: ["real_person", "historical_figure", "scientist", "male", "dead", "british", "famous", "biology", "evolution", "beard", "modern_era"], description: "Theorized evolution.", popularity: 86 },
+   466→      { name: "Leonardo da Vinci", sub: "artists", tags: ["real_person", "historical_figure", "artist", "inventor", "male", "dead", "italian", "famous", "painter", "genius", "renaissance", "old_era"], description: "The Renaissance polymath.", popularity: 90 },
+   467→      { name: "William Shakespeare", sub: "artists", tags: ["real_person", "historical_figure", "writer", "male", "dead", "british", "famous", "playwright", "poet", "old_era"], description: "The Bard of Avon.", popularity: 90 },
+   468→      { name: "Mozart", sub: "artists", tags: ["real_person", "historical_figure", "musician", "male", "dead", "austrian", "famous", "composer", "classical", "child_prodigy", "old_era"], description: "A classical music prodigy.", popularity: 86 },
+   469→      { name: "Beethoven", sub: "artists", tags: ["real_person", "historical_figure", "musician", "male", "dead", "german", "famous", "composer", "classical", "deaf", "old_era"], description: "A deaf classical composer.", popularity: 84 },
+   470→      { name: "Napoleon Bonaparte", sub: "leaders", tags: ["real_person", "historical_figure", "leader", "male", "dead", "french", "famous", "military", "emperor", "short_myth", "old_era"], description: "A French emperor and general.", popularity: 88 },
+   471→      { name: "Julius Caesar", sub: "ancient", tags: ["real_person", "historical_figure", "leader", "male", "dead", "roman", "famous", "military", "ruler", "ancient_era", "assassinated"], description: "A Roman general and dictator.", popularity: 88 },
+   472→      { name: "Cleopatra", sub: "ancient", tags: ["real_person", "historical_figure", "leader", "female", "dead", "egyptian", "famous", "ruler", "beautiful", "ancient_era", "royal"], description: "The last pharaoh of Egypt.", popularity: 86 },
+   473→      { name: "Alexander the Great", sub: "ancient", tags: ["real_person", "historical_figure", "leader", "male", "dead", "greek", "famous", "military", "conqueror", "ancient_era", "young"], description: "A Macedonian conqueror.", popularity: 84 },
+   474→      { name: "Genghis Khan", sub: "ancient", tags: ["real_person", "historical_figure", "leader", "male", "dead", "mongolian", "famous", "military", "conqueror", "empire", "ancient_era"], description: "Founder of the Mongol Empire.", popularity: 82 },
+   475→      { name: "George Washington", sub: "leaders", tags: ["real_person", "historical_figure", "leader", "male", "dead", "american", "famous", "president", "founder", "military", "modern_era"], description: "The first US president.", popularity: 90 },
+   476→      { name: "Abraham Lincoln", sub: "leaders", tags: ["real_person", "historical_figure", "leader", "male", "dead", "american", "famous", "president", "tall", "beard", "hat", "modern_era"], description: "The US president who freed slaves.", popularity: 89 },
+   477→      { name: "Mahatma Gandhi", sub: "leaders", tags: ["real_person", "historical_figure", "leader", "male", "dead", "indian", "famous", "peaceful", "activist", "thin", "glasses", "modern_era"], description: "India's peaceful independence leader.", popularity: 88 },
+   478→      { name: "Martin Luther King Jr.", sub: "modern-era", tags: ["real_person", "historical_figure", "leader", "male", "dead", "american", "famous", "activist", "peaceful", "speech", "modern_era"], description: "A civil rights icon.", popularity: 87 },
+   479→      { name: "Winston Churchill", sub: "modern-era", tags: ["real_person", "historical_figure", "leader", "male", "dead", "british", "famous", "prime_minister", "ww2", "cigar", "modern_era"], description: "Britain's wartime PM.", popularity: 84 },
+   480→      { name: "Nelson Mandela", sub: "modern-era", tags: ["real_person", "historical_figure", "leader", "male", "dead", "south_african", "famous", "activist", "president", "imprisoned", "modern_era"], description: "South Africa's anti-apartheid hero.", popularity: 86 },
+   481→    ],
+   482→  },
+   483→];
+   484→
+   485→// ------------------------------------------------------------
+   486→// QUESTIONS
+   487→// Each probes a tag. Yes => the entity HAS that tag (unless inverted).
+   488→// ------------------------------------------------------------
+   489→
+   490→const QUESTIONS: QuestionSeed[] = [
+   491→  // --- Broad category splitters (work in "Anything" mode) ---
+   492→  { text: "Is it a real, existing person?", tag: "real_person" },
+   493→  { text: "Is it a fictional character?", tag: "fictional_character" },
+   494→  { text: "Is it a job or profession?", tag: "profession" },
+   495→  { text: "Is it an animal?", tag: "animal" },
+   496→  { text: "Is it a country or place?", tag: "place" },
+   497→  { text: "Is it a movie?", tag: "movie" },
+   498→  { text: "Is it a TV show?", tag: "tv_show" },
+   499→  { text: "Is it a video game?", tag: "video_game" },
+   500→  { text: "Is it a brand or company?", tag: "brand" },
+   501→  { text: "Is it a physical object?", tag: "object" },
+   502→  { text: "Is it a sport?", tag: "sport" },
+   503→  { text: "Is it a famous person from history?", tag: "historical_figure" },
+   504→  { text: "Is it a celebrity?", tag: "celebrity" },
+   505→
+   506→  // --- People: gender / life ---
+   507→  { text: "Is this person male?", tag: "male" },
+   508→  { text: "Is this person female?", tag: "female" },
+   509→  { text: "Is this person still alive?", tag: "alive" },
+   510→  { text: "Is this person deceased?", tag: "dead" },
+   511→  { text: "Is this person American?", tag: "american" },
+   512→  { text: "Is this person European (British, French, German, etc.)?", tag: "european" },
+   513→  { text: "Is this person Asian (Japanese, Chinese, etc.)?", tag: "asian" },
+   514→  { text: "Is this person an actor or actress?", tag: "actor" },
+   515→  { text: "Is this person a musician or singer?", tag: "musician" },
+   516→  { text: "Is this person an athlete?", tag: "athlete" },
+   517→  { text: "Is this person a scientist or inventor?", tag: "scientist" },
+   518→  { text: "Is this person a political or military leader?", tag: "leader" },
+   519→  { text: "Is this person an entrepreneur or business figure?", tag: "entrepreneur" },
+   520→  { text: "Is this person known for being a genius?", tag: "genius" },
+   521→  { text: "Is this person famous?", tag: "famous" },
+   522→
+   523→  // --- Characters ---
+   524→  { text: "Is the character from an anime or manga?", tag: "anime" },
+   525→  { text: "Is the character a superhero?", tag: "superhero" },
+   526→  { text: "Is the character a villain?", tag: "villain" },
+   527→  { text: "Does the character have superpowers?", tag: "powers" },
+   528→  { text: "Is the character from comics?", tag: "comics" },
+   529→  { text: "Is the character from a cartoon?", tag: "cartoon" },
+   530→  { text: "Is the character from a book?", tag: "book_character" },
+   531→  { text: "Is the character from a video game?", tag: "video_game_character" },
+   532→  { text: "Is the character from Disney?", tag: "disney" },
+   533→  { text: "Is the character associated with Nintendo?", tag: "nintendo" },
+   534→  { text: "Does the character use magic?", tag: "magic" },
+   535→  { text: "Does the character wield a sword?", tag: "sword" },
+   536→  { text: "Is the character young (a child or teen)?", tag: "young" },
+   537→  { text: "Is the character funny?", tag: "funny" },
+   538→  { text: "Is the character cute?", tag: "cute" },
+   539→  { text: "Is the character an animal or animal-like?", tag: "animal_like" },
+   540→
+   541→  // --- Jobs ---
+   542→  { text: "Does the job require a university degree?", tag: "degree" },
+   543→  { text: "Is it a healthcare job?", tag: "healthcare" },
+   544→  { text: "Is it a technology job?", tag: "technology" },
+   545→  { text: "Is it in education?", tag: "education" },
+   546→  { text: "Is it a creative or arts job?", tag: "arts" },
+   547→  { text: "Is it a trade (manual labor)?", tag: "trades" },
+   548→  { text: "Is it a well-paid job?", tag: "high_income" },
+   549→  { text: "Does the job involve working with people?", tag: "people_focused" },
+   550→  { text: "Does the job involve working with machines or computers?", tag: "machine_focused" },
+   551→  { text: "Does the job involve science?", tag: "science" },
+   552→  { text: "Is the job mostly indoors?", tag: "indoor" },
+   553→  { text: "Is the job mostly outdoors?", tag: "outdoor" },
+   554→  { text: "Does the job involve a uniform?", tag: "uniform" },
+   555→  { text: "Is the job physically demanding?", tag: "physical" },
+   556→  { text: "Is the job dangerous?", tag: "dangerous" },
+   557→  { text: "Is it a law-related job?", tag: "law" },
+   558→
+   559→  // --- Animals ---
+   560→  { text: "Is it a mammal?", tag: "mammal" },
+   561→  { text: "Is it a bird?", tag: "bird" },
+   562→  { text: "Is it a reptile or amphibian?", tag: "reptile" },
+   563→  { text: "Is it a fish or sea creature?", tag: "fish" },
+   564→  { text: "Is it an insect or bug?", tag: "insect" },
+   565→  { text: "Is it a carnivore (meat-eater)?", tag: "carnivore" },
+   566→  { text: "Is it a herbivore (plant-eater)?", tag: "herbivore" },
+   567→  { text: "Is it a wild animal?", tag: "wild" },
+   568→  { text: "Is it a domestic or pet animal?", tag: "domestic" },
+   569→  { text: "Can it fly?", tag: "flying" },
+   570→  { text: "Can it swim?", tag: "swimming" },
+   571→  { text: "Is it a large animal?", tag: "large" },
+   572→  { text: "Is it a small animal?", tag: "small" },
+   573→  { text: "Is it a predator?", tag: "predator" },
+   574→  { text: "Is it a fast animal?", tag: "fast" },
+   575→  { text: "Is it considered smart or intelligent?", tag: "smart" },
+   576→  { text: "Is it from Africa?", tag: "african_animal" },
+   577→  { text: "Is it from Asia?", tag: "asian_animal" },
+   578→
+   579→  // --- Countries / places ---
+   580→  { text: "Is it in Asia?", tag: "asian" },
+   581→  { text: "Is it in Europe?", tag: "european" },
+   582→  { text: "Is it in the Americas?", tag: "american" },
+   583→  { text: "Is it in Africa?", tag: "african" },
+   584→  { text: "Is it an island nation?", tag: "island" },
+   585→  { text: "Is it a large country?", tag: "large" },
+   586→  { text: "Is it a populous country?", tag: "populous" },
+   587→  { text: "Is it a developed country?", tag: "developed" },
+   588→  { text: "Is it a tropical country?", tag: "tropical" },
+   589→  { text: "Is it a cold country?", tag: "cold" },
+   590→  { text: "Is it a hot country?", tag: "hot" },
+   591→  { text: "Is it an ancient civilization?", tag: "ancient_place" },
+   592→  { text: "Is it English-speaking?", tag: "english_speaking" },
+   593→  { text: "Is it known for technology?", tag: "tech_advanced" },
+   594→
+   595→  // --- Movies ---
+   596→  { text: "Is it an animated movie?", tag: "animated" },
+   597→  { text: "Is it a Disney movie?", tag: "disney" },
+   598→  { text: "Is it an action movie?", tag: "action" },
+   599→  { text: "Is it a comedy?", tag: "comedy" },
+   600→  { text: "Is it a drama?", tag: "drama" },
+   601→  { text: "Is it a horror movie?", tag: "horror" },
+   602→  { text: "Is it a sci-fi movie?", tag: "scifi" },
+   603→  { text: "Is it a fantasy movie?", tag: "fantasy" },
+   604→  { text: "Is it a superhero movie?", tag: "superhero" },
+   605→  { text: "Is it a blockbuster?", tag: "blockbuster" },
+   606→  { text: "Is it a classic (older) movie?", tag: "classic_movie" },
+   607→  { text: "Is it a modern (recent) movie?", tag: "modern_movie" },
+   608→  { text: "Is it a family-friendly movie?", tag: "family" },
+   609→  { text: "Is it critically acclaimed?", tag: "critically_acclaimed" },
+   610→  { text: "Is it part of a franchise?", tag: "franchise" },
+   611→
+   612→  // --- TV shows ---
+   613→  { text: "Is it a sitcom (comedy)?", tag: "sitcom" },
+   614→  { text: "Is it a crime or thriller drama?", tag: "crime_drama" },
+   615→  { text: "Is it an animated show?", tag: "animated_show" },
+   616→  { text: "Is it a streaming-era show?", tag: "modern_show" },
+   617→  { text: "Is it a long-running show?", tag: "long_running" },
+   618→  { text: "Is it a British show?", tag: "british_show" },
+   619→  { text: "Is it an American show?", tag: "american_show" },
+   620→  { text: "Is it dark or violent?", tag: "dark" },
+   621→  { text: "Is it a reality show?", tag: "reality" },
+   622→
+   623→  // --- Video games ---
+   624→  { text: "Is it a role-playing game (RPG)?", tag: "rpg" },
+   625→  { text: "Is it an action-adventure game?", tag: "action_adventure" },
+   626→  { text: "Is it a shooter game?", tag: "shooter" },
+   627→  { text: "Is it a puzzle game?", tag: "puzzle" },
+   628→  { text: "Is it a sports or racing game?", tag: "sports_game" },
+   629→  { text: "Is it an open-world game?", tag: "open_world" },
+   630→  { text: "Is it a retro / classic game?", tag: "retro_game" },
+   631→  { text: "Is it a modern game?", tag: "modern_game" },
+   632→  { text: "Is it a Nintendo game?", tag: "nintendo" },
+   633→  { text: "Is it multiplayer?", tag: "multiplayer" },
+   634→  { text: "Does it involve magic or fantasy?", tag: "fantasy" },
+   635→  { text: "Is it a sandbox or creative game?", tag: "sandbox" },
+   636→
+   637→  // --- Brands ---
+   638→  { text: "Is it a technology brand?", tag: "tech_brand" },
+   639→  { text: "Is it a food or drink brand?", tag: "food_brand" },
+   640→  { text: "Is it a fashion brand?", tag: "fashion_brand" },
+   641→  { text: "Is it a car brand?", tag: "car_brand" },
+   642→  { text: "Is it a luxury (expensive) brand?", tag: "luxury_brand" },
+   643→  { text: "Is it an American brand?", tag: "american_brand" },
+   644→  { text: "Is it a Japanese brand?", tag: "japanese_brand" },
+   645→  { text: "Is it a European brand?", tag: "european" },
+   646→  { text: "Is it a global (worldwide) brand?", tag: "global_brand" },
+   647→  { text: "Is it an old, established brand?", tag: "old_brand" },
+   648→  { text: "Is it a modern, recent brand?", tag: "modern_brand" },
+   649→  { text: "Does it make hardware (devices)?", tag: "hardware_brand" },
+   650→  { text: "Does it make software?", tag: "software_brand" },
+   651→
+   652→  // --- Objects ---
+   653→  { text: "Is it an electronic device?", tag: "electronic" },
+   654→  { text: "Is it a piece of furniture?", tag: "furniture" },
+   655→  { text: "Is it an item of clothing?", tag: "clothing" },
+   656→  { text: "Is it a tool?", tag: "tool" },
+   657→  { text: "Is it a kitchen item?", tag: "kitchen" },
+   658→  { text: "Is it an office or school item?", tag: "office" },
+   659→  { text: "Is it food or drink?", tag: "food" },
+   660→  { text: "Is it small (portable)?", tag: "small_object" },
+   661→  { text: "Is it large?", tag: "large_object" },
+   662→  { text: "Is it portable?", tag: "portable" },
+   663→  { text: "Does it have a screen?", tag: "screen" },
+   664→  { text: "Does it use electricity?", tag: "electric" },
+   665→  { text: "Is it soft?", tag: "soft" },
+   666→  { text: "Is it sharp?", tag: "sharp" },
+   667→  { text: "Is it a household item?", tag: "household" },
+   668→  { text: "Is it something you wear?", tag: "wearable" },
+   669→
+   670→  // --- Sports ---
+   671→  { text: "Is it a team sport?", tag: "team_sport" },
+   672→  { text: "Is it an individual sport?", tag: "individual_sport" },
+   673→  { text: "Is it a ball sport?", tag: "ball_sport" },
+   674→  { text: "Is it an Olympic sport?", tag: "olympic" },
+   675→  { text: "Is it a water sport?", tag: "water_sport" },
+   676→  { text: "Is it a winter sport?", tag: "winter_sport" },
+   677→  { text: "Is it a contact or combat sport?", tag: "contact" },
+   678→  { text: "Is it played indoors?", tag: "indoor_sport" },
+   679→  { text: "Is it played outdoors?", tag: "outdoor_sport" },
+   680→  { text: "Is it a motorsport?", tag: "motorsport" },
+   681→  { text: "Is it a globally popular sport?", tag: "popular_sport" },
+   682→];
+   683→
+   684→// ------------------------------------------------------------
+   685→// Helpers
+   686→// ------------------------------------------------------------
+   687→
+   688→function slugify(s: string): string {
+   689→  return s
+   690→    .toLowerCase()
+   691→    .replace(/[^a-z0-9]+/g, "-")
+   692→    .replace(/(^-|-$)/g, "");
+   693→}
+   694→
+   695→// ------------------------------------------------------------
+   696→// Seed runner
+   697→// ------------------------------------------------------------
+   698→
+   699→async function seed() {
+   700→  console.log("Seeding GUESS MY ANYTHING...");
+   701→
+   702→  // Wipe (order matters for FK constraints)
+   703→  await db.entityTag.deleteMany();
+   704→  await db.question.deleteMany();
+   705→  await db.learning.deleteMany();
+   706→  await db.gameResult.deleteMany();
+   707→  await db.gameSession.deleteMany();
+   708→  await db.feedback.deleteMany();
+   709→  await db.entity.deleteMany();
+   710→  await db.tag.deleteMany();
+   711→  await db.subcategory.deleteMany();
+   712→  await db.category.deleteMany();
+   713→  await db.setting.deleteMany();
+   714→
+   715→  const tagMap = new Map<string, string>(); // slug -> id
+   716→
+   717→  // 1. Categories + subcategories
+   718→  let catOrder = 0;
+   719→  for (const cat of CATEGORIES) {
+   720→    const category = await db.category.create({
+   721→      data: {
+   722→        name: cat.name,
+   723→        slug: cat.slug,
+   724→        description: cat.description,
+   725→        icon: cat.icon,
+   726→        color: cat.color,
+   727→        sortOrder: catOrder++,
+   728→      },
+   729→    });
+   730→
+   731→    const subMap = new Map<string, string>();
+   732→    let subOrder = 0;
+   733→    for (const sub of cat.subs) {
+   734→      const s = await db.subcategory.create({
+   735→        data: {
+   736→          name: sub.name,
+   737→          slug: sub.slug,
+   738→          categoryId: category.id,
+   739→          sortOrder: subOrder++,
+   740→        },
+   741→      });
+   742→      subMap.set(sub.slug, s.id);
+   743→    }
+   744→
+   745→    // 2. Entities + tags
+   746→    for (const e of cat.entities) {
+   747→      // ensure tags exist
+   748→      const tagIds: string[] = [];
+   749→      const tagSlugs: string[] = [];
+   750→      for (const t of e.tags) {
+   751→        const slug = slugify(t);
+   752→        if (!tagMap.has(slug)) {
+   753→          const created = await db.tag.create({ data: { name: t, slug } });
+   754→          tagMap.set(slug, created.id);
+   755→        }
+   756→        tagIds.push(tagMap.get(slug)!);
+   757→        tagSlugs.push(slug);
+   758→      }
+   759→
+   760→      const entity = await db.entity.create({
+   761→        data: {
+   762→          name: e.name,
+   763→          slug: slugify(e.name),
+   764→          description: e.description ?? null,
+   765→          categoryId: category.id,
+   766→          subcategoryId: e.sub ? subMap.get(e.sub) ?? null : null,
+   767→          difficulty: e.difficulty ?? 1,
+   768→          popularity: e.popularity ?? 50,
+   769→          tagCache: tagSlugs.join(","),
+   770→        },
+   771→      });
+   772→
+   773→      // link tags
+   774→      for (let i = 0; i < tagIds.length; i++) {
+   775→        await db.entityTag.create({
+   776→          data: { entityId: entity.id, tagId: tagIds[i], weight: 1.0 },
+   777→        });
+   778→      }
+   779→    }
+   780→  }
+   781→
+   782→  console.log(`Created ${CATEGORIES.length} categories.`);
+   783→
+   784→  // 3. Questions
+   785→  let qCount = 0;
+   786→  for (const q of QUESTIONS) {
+   787→    const slug = slugify(q.tag);
+   788→    if (!tagMap.has(slug)) {
+   789→      // Create the tag if a question references a tag no entity has (still useful
+   790→      // as a "distinguishing" question once entities gain it).
+   791→      const created = await db.tag.create({ data: { name: q.tag, slug } });
+   792→      tagMap.set(slug, created.id);
+   793→    }
+   794→    let categoryId: string | null = null;
+   795→    if (q.category) {
+   796→      const c = await db.category.findUnique({ where: { slug: q.category } });
+   797→      categoryId = c?.id ?? null;
+   798→    }
+   799→    await db.question.create({
+   800→      data: {
+   801→        text: q.text,
+   802→        primaryTagId: tagMap.get(slug)!,
+   803→        categoryId,
+   804→        inverted: q.inverted ?? false,
+   805→        sortOrder: qCount,
+   806→      },
+   807→    });
+   808→    qCount++;
+   809→  }
+   810→  console.log(`Created ${qCount} questions.`);
+   811→
+   812→  // 4. Default settings
+   813→  const settings = [
+   814→    { key: "weightYes", value: "15", type: "number", group: "game", label: "Yes weight" },
+   815→    { key: "weightProbably", value: "8", type: "number", group: "game", label: "Probably weight" },
+   816→    { key: "weightDontKnow", value: "0", type: "number", group: "game", label: "Don't know weight" },
+   817→    { key: "weightProbablyNot", value: "8", type: "number", group: "game", label: "Probably not weight" },
+   818→    { key: "weightNo", value: "15", type: "number", group: "game", label: "No weight" },
+   819→    { key: "initialScore", value: "100", type: "number", group: "game", label: "Initial score" },
+   820→    { key: "minQuestions", value: "8", type: "number", group: "game", label: "Min questions before guess" },
+   821→    { key: "maxQuestions", value: "28", type: "number", group: "game", label: "Max questions" },
+   822→    { key: "confidenceThreshold", value: "1.45", type: "number", group: "game", label: "Confidence threshold" },
+   823→    { key: "scoreGapThreshold", value: "55", type: "number", group: "game", label: "Score gap threshold" },
+   824→    { key: "candidatePoolSize", value: "200", type: "number", group: "game", label: "Candidate pool size" },
+   825→    { key: "maxGuesses", value: "3", type: "number", group: "game", label: "Max wrong guesses before giving up" },
+   826→    { key: "siteName", value: "GUESS MY ANYTHING", type: "string", group: "site", label: "Site name" },
+   827→    { key: "siteTagline", value: "Think of anything. I'll guess it.", type: "string", group: "site", label: "Tagline" },
+   828→    { key: "siteDescription", value: "A modern AI-powered guessing game. Think of anything — a job, character, animal, country, movie, and more — and the AI will guess it through intelligent questions.", type: "string", group: "site", label: "Description" },
+   829→    { key: "seoKeywords", value: "guessing game, akinator, ai game, think of anything, 20 questions", type: "string", group: "seo", label: "SEO keywords" },
+   830→    { key: "socialShareEnabled", value: "true", type: "boolean", group: "site", label: "Enable social sharing" },
+   831→    { key: "soundEnabled", value: "true", type: "boolean", group: "site", label: "Sound enabled by default" },
+   832→  ];
+   833→  for (const s of settings) {
+   834→    await db.setting.create({ data: s });
+   835→  }
+   836→  console.log(`Created ${settings.length} settings.`);
+   837→
+   838→  const entityCount = await db.entity.count();
+   839→  const tagCount = await db.tag.count();
+   840→  console.log(`Done. Entities: ${entityCount}, Tags: ${tagCount}, Questions: ${qCount}`);
+   841→}
+   842→
+   843→seed()
+   844→  .catch((e) => {
+   845→    console.error(e);
+   846→    process.exit(1);
+   847→  })
+   848→  .finally(async () => {
+   849→    await db.$disconnect();
+   850→  });
+   851→
