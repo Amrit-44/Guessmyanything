@@ -22,6 +22,9 @@ const SITE_URL = "https://guess-my-anything.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  verification: {
+    google: "xz3kaqjvz2667MVtQAaZYTp3Ju44Yd33jQvTY99DwTg",
+  },
   title: {
     default: "GUESS MY ANYTHING — AI Guessing Game",
     template: "%s | GUESS MY ANYTHING",
@@ -42,7 +45,6 @@ export const metadata: Metadata = {
   authors: [{ name: "GUESS MY ANYTHING" }],
   creator: "GUESS MY ANYTHING",
   applicationName: "GUESS MY ANYTHING",
-  keywords: ["guessing game", "akinator", "ai game", "think of anything", "20 questions"],
   openGraph: {
     title: "GUESS MY ANYTHING — AI Guessing Game",
     description:
