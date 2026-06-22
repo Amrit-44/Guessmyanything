@@ -43,17 +43,6 @@ export function CategoryTemplate({
   const { play } = useSound();
   const prevStatusRef = useRef<string | null>(null);
 
-  const startTriggered = useRef(false);
-  useEffect(() => {
-    if (startTriggered.current) return;
-    startTriggered.current = true;
-    if (isAge) {
-      ageGame.start();
-    } else {
-      game.start(category);
-    }
-  }, [category]);
-
   useEffect(() => {
     if (isAge) return;
     if (!game.snapshot) return;
@@ -67,18 +56,19 @@ export function CategoryTemplate({
     }
   }, [game.snapshot?.status, play, isAge]);
 
-  const handlePlayAgain = () => {
+  const handleStart = () => {
     if (isAge) {
       ageGame.reset();
+      ageGame.start();
     } else {
       game.reset();
       prevStatusRef.current = null;
+      game.start(category);
     }
-    setTimeout(() => {
-      startTriggered.current = false;
-      if (isAge) ageGame.start();
-      else game.start(category);
-    }, 100);
+  };
+
+  const handlePlayAgain = () => {
+    handleStart();
   };
 
   const activeSnapshot = isAge ? ageGame.snapshot : game.snapshot;
@@ -132,10 +122,13 @@ export function CategoryTemplate({
               )}
               <div className="mt-6">
                 <button
-                  onClick={handlePlayAgain}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-xl"
+                  type="button"
+                  onClick={handleStart}
+                  disabled={loading}
+                  aria-busy={loading}
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  <Sparkles className="h-5 w-5" /> START
+                  <Sparkles className="h-5 w-5" /> {loading ? "Starting..." : "START"}
                 </button>
               </div>
             </motion.div>

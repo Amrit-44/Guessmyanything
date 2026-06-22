@@ -106,6 +106,7 @@ export function HomeScreen({ categories, totalEntities }: Props) {
             THINK OF ANYTHING
           </h2>
           <button
+            type="button"
             onClick={handlePlay}
             className="mb-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition-all hover:bg-indigo-700 hover:shadow-xl sm:mb-6 sm:w-auto sm:px-8 sm:py-4 sm:text-base"
           >
@@ -127,6 +128,7 @@ export function HomeScreen({ categories, totalEntities }: Props) {
             const meta = CATEGORY_META[slug];
             return (
               <motion.button
+                type="button"
                 key={slug}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
