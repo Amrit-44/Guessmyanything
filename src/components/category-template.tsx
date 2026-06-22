@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ChevronRight, Home, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { useGame } from "@/hooks/use-game";
 import { useSound } from "@/hooks/use-sound";
 import { useAgeGame } from "@/hooks/use-age-game";
@@ -66,6 +67,18 @@ export function CategoryTemplate({
       game.start(category);
     }
   };
+
+  useEffect(() => {
+    if (game.error) {
+      toast.error(game.error);
+    }
+  }, [game.error]);
+
+  useEffect(() => {
+    if (ageGame.error) {
+      toast.error(ageGame.error);
+    }
+  }, [ageGame.error]);
 
   const handlePlayAgain = () => {
     handleStart();
@@ -131,6 +144,11 @@ export function CategoryTemplate({
                   <Sparkles className="h-5 w-5" /> {loading ? "Starting..." : "START"}
                 </button>
               </div>
+              {(game.error || ageGame.error) && (
+                <div className="mx-auto mt-6 max-w-md rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+                  {game.error ?? ageGame.error}
+                </div>
+              )}
             </motion.div>
           </div>
         )}
