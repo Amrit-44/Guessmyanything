@@ -42,17 +42,25 @@ export function CategoryTemplate({
   const ageGame = useAgeGame();
   const { play } = useSound();
   const prevStatusRef = useRef<string | null>(null);
-
   const startTriggered = useRef(false);
+
+  // Normalize plural URLs to singular DB category keys safely
+  const normalizedCategory = 
+    category === "countries" ? "country" :
+    category === "animals" ? "animal" :
+    category === "movies" ? "movie" :
+    category === "sports" ? "sport" :
+    category;
+
   useEffect(() => {
     if (startTriggered.current) return;
     startTriggered.current = true;
     if (isAge) {
       ageGame.start();
     } else {
-      game.start(category);
+      game.start(normalizedCategory);
     }
-  }, [category]);
+  }, [normalizedCategory, isAge]);
 
   useEffect(() => {
     if (isAge) return;
@@ -77,7 +85,7 @@ export function CategoryTemplate({
     setTimeout(() => {
       startTriggered.current = false;
       if (isAge) ageGame.start();
-      else game.start(category);
+      else game.start(normalizedCategory);
     }, 100);
   };
 
