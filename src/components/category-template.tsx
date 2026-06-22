@@ -44,23 +44,15 @@ export function CategoryTemplate({
   const prevStatusRef = useRef<string | null>(null);
   const startTriggered = useRef(false);
 
-  // Normalize plural URLs to singular DB category keys safely
-  const normalizedCategory = 
-    category === "countries" ? "country" :
-    category === "animals" ? "animal" :
-    category === "movies" ? "movie" :
-    category === "sports" ? "sport" :
-    category;
-
   useEffect(() => {
     if (startTriggered.current) return;
     startTriggered.current = true;
     if (isAge) {
       ageGame.start();
     } else {
-      game.start(normalizedCategory);
+      game.start(category);
     }
-  }, [normalizedCategory, isAge]);
+  }, [category, isAge]);
 
   useEffect(() => {
     if (isAge) return;
@@ -85,7 +77,7 @@ export function CategoryTemplate({
     setTimeout(() => {
       startTriggered.current = false;
       if (isAge) ageGame.start();
-      else game.start(normalizedCategory);
+      else game.start(category);
     }, 100);
   };
 
