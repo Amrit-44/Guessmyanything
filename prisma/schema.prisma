@@ -246,7 +246,6 @@ model AgeSession {
   confidence    Int?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
   @@index([status])
   @@index([createdAt])
 }
@@ -261,7 +260,6 @@ model AgeResult {
   actualAge     Int?
   durationSec   Int      @default(0)
   createdAt     DateTime @default(now())
-
   @@index([won])
   @@index([createdAt])
 }
@@ -281,7 +279,6 @@ model AgeQuestion {
   avgInfoGain Float    @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
   @@index([tag])
   @@index([category])
   @@index([isActive])
@@ -298,7 +295,6 @@ model AgeLearning {
   notes         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-
   @@index([status])
   @@index([createdAt])
 }
