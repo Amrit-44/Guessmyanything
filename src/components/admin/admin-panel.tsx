@@ -38,7 +38,6 @@ export function AdminPanel({ onExit }: Props) {
               <span className="hidden sm:inline">Back to game</span>
             </Button>
             <div className="h-5 w-px bg-border" />
-            <img src="/logo.png" alt="Logo" className="h-8 w-8 rounded-lg" />
             <h1
               className="text-sm neon-pink sm:text-base"
               style={{ fontFamily: "var(--font-pixel)" }}

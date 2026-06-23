@@ -232,15 +232,18 @@ export async function rebuildScoreboard(
 // ------------------------------------------------------------
 // JOB MODE — Industry detection & locking
 //
-// When categoryFilter === 'jobs', the engine:
-//   1. STRICT LOCK: loads ONLY job-category questions (never general
-//      questions like "Is it an animal?").
-//   2. INDUSTRY DETECTION: computes score mass per industry tag to
+// The strict category lock (only loading questions whose category
+// matches the selected mode) now applies to ALL categories, not just
+// jobs — see selectNextQuestion(). This prevents off-category questions
+// like "Is it a large animal?" from appearing in Countries mode.
+//
+// Beyond the shared category lock, job mode adds:
+//   1. INDUSTRY DETECTION: computes score mass per industry tag to
 //      identify the user's industry (Healthcare, Technology, etc.).
-//   3. INDUSTRY LOCKING: when one industry exceeds 65% confidence,
+//   2. INDUSTRY LOCKING: when one industry exceeds 65% confidence,
 //      filters the candidate pool to that industry so subsequent
 //      questions discriminate WITHIN the industry.
-//   4. INDUSTRY BROAD BOOST: early questions prioritize industry-
+//   3. INDUSTRY BROAD BOOST: early questions prioritize industry-
 //      probing tags so the industry is identified quickly.
 // ------------------------------------------------------------
 
@@ -331,74 +334,6 @@ async function getIndustryEntityIds(
 }
 
 // ------------------------------------------------------------
-// FLAW 1 FIX: Mutually Exclusive Tag Groups
-//
-// Tags in the same group are logical opposites. If the user answers
-// "YES" to one tag, ALL other tags in that group are logically "NO"
-// and must never be asked. If the user answers "NO", we don't assume
-// the opposite is YES (that would be illogical), but we apply a heavy
-// penalty to other tags in the same group for 3 rounds.
-// ------------------------------------------------------------
-
-export const MUTUALLY_EXCLUSIVE_GROUPS: Record<string, string[]> = {
-  gender: ["male", "female", "non-binary", "other"],
-  work_setting: ["outdoor", "indoor", "indoor-sport", "outdoor-sport", "remote"],
-  employment_status: ["employed", "unemployed", "student", "retired", "retired-planning"],
-  age_stage: ["child", "teen", "young_adult", "adult", "middle_age", "senior"],
-  income: ["low-income", "medium-income", "high-income", "variable-income"],
-  education: ["no-degree", "certificate", "associate", "bachelors", "masters", "doctorate"],
-  work_arrangement: ["solo-work", "team-work"],
-  alive_status: ["alive", "dead"],
-};
-
-// Build a reverse lookup: tag slug → group name
-const TAG_TO_GROUP: Map<string, string> = (() => {
-  const m = new Map<string, string>();
-  for (const [group, tags] of Object.entries(MUTUALLY_EXCLUSIVE_GROUPS)) {
-    for (const t of tags) m.set(t, group);
-  }
-  return m;
-})();
-
-/**
- * Given the history of asked questions and their answers, compute:
- * 1. `impliedNoTags`: tags that are logically "NO" because a
- *    mutual-exclusion sibling was answered "YES".
- * 2. `recentGroupPenalty`: groups that had a "NO" answer in the
- *    last 3 rounds (to delay asking the complement).
- */
-function computeMutualExclusionState(
-  history: { tagSlug: string; answer: Answer }[]
-): { impliedNoTags: Set<string>; penalizedGroups: Set<string> } {
-  const impliedNoTags = new Set<string>();
-  const penalizedGroups = new Set<string>();
-  const recentCount = 3;
-  const recentStart = Math.max(0, history.length - recentCount);
-
-  for (let i = 0; i < history.length; i++) {
-    const entry = history[i];
-    const group = TAG_TO_GROUP.get(entry.tagSlug);
-    if (!group) continue;
-    const groupTags = MUTUALLY_EXCLUSIVE_GROUPS[group];
-
-    if (entry.answer === "yes") {
-      // User said YES to this tag → all other tags in the group are logically NO
-      for (const t of groupTags) {
-        if (t !== entry.tagSlug) impliedNoTags.add(t);
-      }
-    } else if (entry.answer === "no") {
-      // User said NO → don't assume opposite is YES, but penalize the group
-      // if this was in the last 3 rounds
-      if (i >= recentStart) {
-        penalizedGroups.add(group);
-      }
-    }
-  }
-
-  return { impliedNoTags, penalizedGroups };
-}
-
-// ------------------------------------------------------------
 // Dynamic question selection — information gain heuristic
 //
 // We want the question whose tag best splits the current candidate
@@ -412,12 +347,6 @@ function computeMutualExclusionState(
 //   - Near-duplicate prevention (never re-probe the same tag)
 //   - Industry detection + locking
 //   - Industry broad boost for early questions
-//
-// FLAW 1 FIX enhancements:
-//   - Mutually exclusive tag groups (never ask "Are you female?"
-//     after "Are you male?" was answered YES)
-//   - Cooldown for complements (delay "Are you indoors?" after
-//     "Are you outdoors?" was answered NO)
 // ------------------------------------------------------------
 
 export interface SelectedQuestion {
@@ -434,12 +363,12 @@ export async function selectNextQuestion(
   askedIds: string[],
   cfg: EngineConfig,
   categoryFilter: string | null,
-  probedTagSlugs: string[] = [],
-  answerHistory?: { tagSlug: string; answer: Answer }[]
+  probedTagSlugs: string[] = []
 ): Promise<SelectedQuestion | null> {
   const askedCount = askedIds.length;
   const isJobMode = categoryFilter === "jobs";
   const isAnythingMode = categoryFilter === null;
+  const isCategoryMode = categoryFilter !== null;
 
   // --- Candidate pool (shrinks as game progresses) ---
   const dynamicPoolSize = Math.max(
@@ -485,30 +414,20 @@ export async function selectNextQuestion(
   // --- Near-duplicate prevention: never re-probe a tag already asked ---
   const probedSet = new Set(probedTagSlugs);
 
-  // --- FLAW 1 FIX: Mutually exclusive tag groups ---
-  // Compute which tags are logically implied NO (from YES answers to siblings)
-  // and which groups are on cooldown (from recent NO answers).
-  const { impliedNoTags, penalizedGroups } = computeMutualExclusionState(
-    answerHistory ?? probedTagSlugs.map((slug) => ({ tagSlug: slug, answer: "dont_know" as Answer }))
-  );
-
   // --- Eligible questions ---
-  // JOB MODE STRICT LOCK: only job-category questions. General questions
-  // (categoryId: null) are NEVER loaded in job mode, so the engine can
-  // never ask "Is it an animal?", "Is it a person?", etc.
-  const questionWhere = isJobMode
+  // STRICT CATEGORY LOCK: when a specific category is selected, ONLY load
+  // questions assigned to that category. General questions (categoryId: null)
+  // are NEVER loaded in category mode, so the engine can NEVER ask an
+  // off-category question like "Is it a large animal?" while playing
+  // Countries. Anything mode loads ALL questions (broad splitters + every
+  // category's questions) so it can narrow down then drill in.
+  const questionWhere = isCategoryMode
     ? {
         isActive: true,
         id: { notIn: askedIds },
-        category: { slug: "jobs" },
+        category: { slug: categoryFilter as string },
       }
-    : categoryFilter
-    ? {
-        isActive: true,
-        id: { notIn: askedIds },
-        OR: [{ categoryId: null }, { category: { slug: categoryFilter } }],
-      }
-    : { isActive: true, id: { notIn: askedIds }, categoryId: null };
+    : { isActive: true, id: { notIn: askedIds } };
 
   const questions = await db.question.findMany({
     where: questionWhere,
@@ -562,19 +481,6 @@ export async function selectNextQuestion(
     // Near-duplicate prevention: skip if this tag was already probed.
     if (probedSet.has(slug)) continue;
 
-    // FLAW 1 FIX: Skip tags that are logically implied NO (a sibling
-    // in the same mutual-exclusion group was answered YES).
-    if (impliedNoTags.has(slug)) continue;
-
-    // FLAW 1 FIX: If this tag's group is on cooldown (a sibling was
-    // answered NO in the last 3 rounds), apply a heavy penalty.
-    // But allow it if the pool is very small (< 5 entities) — at that
-    // point we need every question we can get.
-    const tagGroup = TAG_TO_GROUP.get(slug);
-    const isOnCooldown =
-      tagGroup && penalizedGroups.has(tagGroup) && pool.length >= 5;
-    const cooldownPenalty = isOnCooldown ? 0.5 : 0; // -50% score
-
     // Compute balance on the (possibly industry-locked) pool.
     let massWith = 0;
     let massWithout = 0;
@@ -609,8 +515,7 @@ export async function selectNextQuestion(
 
     // Final score: balance dominates, effectiveness is a tie-breaker,
     // broad/industry boosts ensure category-carving questions go first.
-    // FLAW 1 FIX: cooldown penalty reduces score for complement tags.
-    const score = (balance * 0.7 + eff * 0.2 + broad + indBoost) * (1 - cooldownPenalty);
+    const score = balance * 0.7 + eff * 0.2 + broad + indBoost;
 
     if (!best || score > best.score) {
       best = {

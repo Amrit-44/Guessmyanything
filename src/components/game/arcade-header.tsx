@@ -1,18 +1,20 @@
 "use client";
 
-import { Volume2, VolumeX, Sun, Moon, Gamepad2 } from "lucide-react";
+import { Volume2, VolumeX, Sun, Moon, Shield, Gamepad2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 
 interface Props {
   soundEnabled: boolean;
   onToggleSound: () => void;
+  onOpenAdmin: () => void;
   compact?: boolean;
 }
 
 export function ArcadeHeader({
   soundEnabled,
   onToggleSound,
+  onOpenAdmin,
   compact,
 }: Props) {
   const { theme, setTheme } = useTheme();
@@ -65,6 +67,15 @@ export function ArcadeHeader({
             ) : (
               <VolumeX className="h-4 w-4 text-muted-foreground" />
             )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onOpenAdmin}
+            aria-label="Admin panel"
+            className="h-9 w-9"
+          >
+            <Shield className="h-4 w-4 text-muted-foreground" />
           </Button>
         </div>
       </div>

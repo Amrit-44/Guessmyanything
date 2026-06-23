@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Undo2, RotateCcw, ListOrdered, Loader2 } from "lucide-react";
+import { Undo2, RotateCcw, Brain, ListOrdered } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,9 +9,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { AnswerButtons } from "./answer-buttons";
-import type { GameSnapshot, Answer } from "@/hooks/use-game";
+import { ConfidenceMeter } from "./confidence-meter";
+import type { GameSnapshot } from "@/hooks/use-game";
+import type { Answer } from "@/hooks/use-game";
 import { useSound } from "@/hooks/use-sound";
 
 interface Props {
@@ -23,11 +26,11 @@ interface Props {
 }
 
 const ANSWER_LABEL: Record<Answer, string> = {
-  yes: "Yes",
-  probably: "Probably",
-  dont_know: "Don't know",
-  probably_not: "Probably not",
-  no: "No",
+  yes: "YES",
+  probably: "PROB.",
+  dont_know: "IDK",
+  probably_not: "PROB. NOT",
+  no: "NO",
 };
 
 export function QuestionScreen({
@@ -45,84 +48,102 @@ export function QuestionScreen({
     onAnswer(a);
   };
 
-  const confidencePercent = Math.max(0, Math.min(100, snapshot.confidence.percent));
-  const barColor =
-    confidencePercent >= 75 ? "#22c55e" : confidencePercent >= 45 ? "#f59e0b" : "#6b7280";
-
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-6">
-      {/* Top bar */}
-      <div className="mb-5 flex items-center justify-between">
+    <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-8">
+      {/* Top bar: category + controls */}
+      <div className="mb-4 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          {snapshot.categoryName && (
-            <span className="rounded-lg bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600">
-              {snapshot.categoryName}
+          {snapshot.categoryName ? (
+            <span
+              className="rounded-sm border border-primary/40 bg-primary/10 px-2 py-1 text-[9px] neon-pink"
+              style={{ fontFamily: "var(--font-pixel)" }}
+            >
+              {snapshot.categoryName.toUpperCase()}
+            </span>
+          ) : (
+            <span
+              className="rounded-sm border border-cyan-400/40 bg-cyan-400/10 px-2 py-1 text-[9px] neon-cyan"
+              style={{ fontFamily: "var(--font-pixel)" }}
+            >
+              ANYTHING
             </span>
           )}
           {snapshot.industry && (
-            <span className="rounded-lg bg-green-50 px-3 py-1 text-xs font-medium text-green-600">
-              {snapshot.industry.name} {snapshot.industry.confidence}%
+            <span
+              className="rounded-sm border border-[var(--neon-green)]/50 bg-[var(--neon-green)]/10 px-2 py-1 text-[9px] neon-green"
+              style={{ fontFamily: "var(--font-pixel)" }}
+              title={`Industry confidence: ${snapshot.industry.confidence}%`}
+            >
+              {snapshot.industry.name.toUpperCase()} {snapshot.industry.confidence}%
             </span>
           )}
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setHistoryOpen(true)}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-400 transition-colors hover:text-gray-700"
+            className="h-7 gap-1 px-2 text-xs"
           >
             <ListOrdered className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">History</span>
-            <span>({snapshot.history.length})</span>
-          </button>
+            <span className="text-muted-foreground">({snapshot.history.length})</span>
+          </Button>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => { play("tick"); onUndo(); }}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              play("tick");
+              onUndo();
+            }}
             disabled={loading || snapshot.history.length === 0}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 transition-colors hover:text-gray-800 disabled:opacity-40"
+            className="h-8 gap-1 px-2 text-xs"
           >
             <Undo2 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Undo</span>
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onRestart}
             disabled={loading}
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 transition-colors hover:text-gray-800 disabled:opacity-40"
+            className="h-8 gap-1 px-2 text-xs text-muted-foreground"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Restart</span>
-          </button>
+          </Button>
         </div>
       </div>
 
-      {/* Confidence bar */}
+      {/* Confidence meter */}
       <div className="mb-6">
-        <div className="mb-1.5 flex items-center justify-between text-xs">
-          <span className="font-medium text-gray-600">AI Confidence</span>
-          <span className="text-gray-400">Question {snapshot.questionCount}</span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-          <motion.div
-            className="h-full rounded-full"
-            style={{ background: barColor }}
-            animate={{ width: `${confidencePercent}%` }}
-            transition={{ duration: 0.4 }}
-          />
-        </div>
+        <ConfidenceMeter
+          percent={snapshot.confidence.percent}
+          questionNumber={snapshot.questionCount}
+        />
       </div>
 
       {/* Question card */}
       <AnimatePresence mode="wait">
         <motion.div
           key={snapshot.question?.questionId}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -16 }}
-          transition={{ duration: 0.25 }}
-          className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8"
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -40 }}
+          transition={{ duration: 0.22 }}
+          className="pixel-card relative mb-6 overflow-hidden rounded-sm p-6 sm:p-8"
         >
-          <p className="mb-3 text-xs font-medium text-indigo-500">
-            Question {snapshot.questionCount}
-          </p>
-          <h2 className="text-xl font-semibold leading-snug text-gray-900 sm:text-2xl">
+          <div className="absolute right-3 top-3 flex items-center gap-1 text-[9px] text-muted-foreground" style={{ fontFamily: "var(--font-pixel)" }}>
+            <Brain className="h-3 w-3 neon-cyan" />
+            Q{snapshot.questionCount}
+          </div>
+          <div className="mb-3 text-[10px] neon-cyan" style={{ fontFamily: "var(--font-pixel)" }}>
+            QUESTION {snapshot.questionCount}
+          </div>
+          <h2
+            className="text-lg leading-snug sm:text-2xl"
+            style={{ fontFamily: "var(--font-retro)" }}
+          >
             {snapshot.question?.text}
           </h2>
         </motion.div>
@@ -131,10 +152,10 @@ export function QuestionScreen({
       {/* Answer buttons */}
       <div className="relative">
         {loading && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/70 backdrop-blur-sm">
-            <div className="flex items-center gap-2 text-sm font-medium text-indigo-600">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Thinking...
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-sm bg-background/60 backdrop-blur-sm">
+            <div className="flex items-center gap-2 text-sm neon-cyan" style={{ fontFamily: "var(--font-pixel)" }}>
+              <Brain className="h-4 w-4 animate-pulse" />
+              <span className="blink">THINKING</span>
             </div>
           </div>
         )}
@@ -145,22 +166,32 @@ export function QuestionScreen({
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent className="max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-gray-900">Question History</DialogTitle>
+            <DialogTitle className="neon-cyan" style={{ fontFamily: "var(--font-pixel)" }}>
+              QUESTION HISTORY
+            </DialogTitle>
           </DialogHeader>
           {snapshot.history.length === 0 ? (
-            <p className="text-sm text-gray-400">No questions yet.</p>
+            <p className="text-sm text-muted-foreground">No questions yet.</p>
           ) : (
             <ol className="space-y-2">
               {snapshot.history.map((h, i) => (
                 <li
                   key={i}
-                  className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm"
+                  className="flex items-start gap-3 rounded-sm border border-border bg-muted/30 p-3 text-sm"
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-xs font-bold text-indigo-600">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary/15 text-[10px] neon-pink"
+                    style={{ fontFamily: "var(--font-pixel)" }}
+                  >
                     {i + 1}
                   </span>
-                  <p className="flex-1 text-gray-700">{h.questionText}</p>
-                  <span className="shrink-0 rounded-lg bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm">{h.questionText}</p>
+                  </div>
+                  <span
+                    className="shrink-0 rounded-sm border border-border px-2 py-0.5 text-[10px]"
+                    style={{ fontFamily: "var(--font-pixel)" }}
+                  >
                     {ANSWER_LABEL[h.answer]}
                   </span>
                 </li>

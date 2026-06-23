@@ -337,11 +337,9 @@ export async function answerQuestion(
       await recordResult(session, false, "—", cfg);
     }
   } else {
-    // Pick the next question. Pass probed tag slugs + answer history for
-    // near-duplicate prevention AND mutually-exclusive-group filtering.
+    // Pick the next question. Pass probed tag slugs for near-duplicate prevention.
     const probedTags = history.map((h) => h.tagSlug);
-    const answerHistory = history.map((h) => ({ tagSlug: h.tagSlug, answer: h.answer }));
-    const next = await selectNextQuestion(scoreboard, askedIds, cfg, session.categoryFilter, probedTags, answerHistory);
+    const next = await selectNextQuestion(scoreboard, askedIds, cfg, session.categoryFilter, probedTags);
     if (next) {
       history.push({
         questionId: next.questionId,
@@ -464,8 +462,7 @@ export async function confirmGuess(
     }
   } else {
     const probedTags = history.map((h) => h.tagSlug);
-    const answerHistory = history.map((h) => ({ tagSlug: h.tagSlug, answer: h.answer }));
-    const next = await selectNextQuestion(scoreboard, askedIds, cfg, session.categoryFilter, probedTags, answerHistory);
+    const next = await selectNextQuestion(scoreboard, askedIds, cfg, session.categoryFilter, probedTags);
     if (next) {
       history.push({
         questionId: next.questionId,

@@ -11,12 +11,7 @@ async function getData() {
       db.category.findMany({
         orderBy: { sortOrder: "asc" },
         select: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          icon: true,
-          color: true,
+          id: true, name: true, slug: true, description: true, icon: true, color: true,
           _count: { select: { entities: { where: { isActive: true } } } },
         },
       }),

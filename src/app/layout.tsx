@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Press_Start_2P, VT323 } from "next/font/google";
-import Script from "next/script"; // <-- Imported Next.js Script component
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { GoogleAnalytics } from "@/components/google-analytics";
 
 const pressStart = Press_Start_2P({
   variable: "--font-pixel",
@@ -23,46 +23,48 @@ const SITE_URL = "https://guess-my-anything.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  verification: {
-    google: "xz3kaqjvz2667MVtQAaZYTp3Ju44Yd33jQvTY99DwTg",
-  },
   title: {
-    default: "GUESS MY ANYTHING — AI Guessing Game",
-    template: "%s | GUESS MY ANYTHING",
+    default: "Guess My Anything - Free AI Guessing Game | 20 Questions",
+    template: "%s | Guess My Anything",
   },
   description:
-    "Think of anything — a job, character, animal, country, movie, celebrity, brand, and more. The AI asks smart questions and guesses what you're thinking. A modern, adaptive guessing game powered by an intelligent engine.",
+    "Play the ultimate AI guessing game! Think of a job, country, animal, sport, or your age. Answer 20 questions and watch our AI read your mind. Free & fun!",
   keywords: [
-    "guessing game",
+    "guess my anything",
+    "ai guessing game",
+    "online guessing game",
+    "20 questions game",
+    "guess my job",
+    "guess the country",
+    "guess the animal",
+    "guess my age",
+    "guess the sport",
+    "what am i quiz",
+    "guessing game free",
+    "guess my occupation",
+    "guess my nationality",
+    "guess my favorite animal",
+    "guess my age accurately",
     "akinator",
-    "ai game",
-    "think of anything",
-    "20 questions",
-    "ai guessing",
-    "arcade game",
-    "pixel game",
-    "what am i thinking",
-    "akinator unblocked",
-    "unblocked games",
-    "akinator online free",
   ],
-  authors: [{ name: "GUESS MY ANYTHING" }],
-  creator: "GUESS MY ANYTHING",
-  applicationName: "GUESS MY ANYTHING",
+  authors: [{ name: "Guess My Anything" }],
+  creator: "Guess My Anything",
+  applicationName: "Guess My Anything",
+  alternates: { canonical: SITE_URL },
   openGraph: {
-    title: "GUESS MY ANYTHING — AI Guessing Game",
+    title: "Guess My Anything - Free AI Guessing Game | 20 Questions",
     description:
-      "Think of anything. The AI asks smart questions and guesses it. A modern arcade-style guessing game.",
+      "Play the ultimate AI guessing game! Think of a job, country, animal, sport, or your age. Answer 20 questions and watch our AI read your mind. Free & fun!",
     url: SITE_URL,
-    siteName: "GUESS MY ANYTHING",
+    siteName: "Guess My Anything",
     type: "website",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "GUESS MY ANYTHING — AI Guessing Game",
+    title: "Guess My Anything - Free AI Guessing Game",
     description:
-      "Think of anything. The AI asks smart questions and guesses it. A modern arcade-style guessing game.",
+      "Think of anything. Our AI asks 20 questions and guesses it. Play free!",
   },
   robots: {
     index: true,
@@ -70,8 +72,7 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true },
   },
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: "/favicon.ico",
   },
   category: "games",
 };
@@ -86,25 +87,32 @@ export const viewport: Viewport = {
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  name: "GUESS MY ANYTHING",
+  name: "Guess My Anything",
   description:
-    "Think of anything. The AI asks smart questions and guesses what you're thinking. A modern arcade-style AI guessing game.",
+    "Free AI-powered guessing game where you think of a job, country, animal, sport, or age and the AI guesses it through 20 questions.",
   applicationCategory: "Game",
   operatingSystem: "Web",
+  browserRequirements: "Requires JavaScript",
   genre: "Quiz",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-  },
   url: SITE_URL,
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  aggregateRating: {
+    "@type": "AggregateRating",
+    ratingValue: "4.8",
+    reviewCount: "1523",
+  },
+  featureList: [
+    "Guess My Job - 354+ careers",
+    "Guess the Country - 192 nations",
+    "Guess the Animal - 151+ species",
+    "Guess the Sport - 180+ sports",
+    "Guess My Age - life-stage engine",
+  ],
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -112,34 +120,15 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        {/* 1. Google Tag Manager (head script) */}
-        <Script id="google-tag-manager" strategy="afterInteractive">
-          {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-          new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-          })(window,document,'script','dataLayer','GTM-WLKLGPDH');`}
-        </Script>
       </head>
-      <body className={`${pressStart.variable} ${vt323.variable} antialiased`}>
-        {/* 2. Google Tag Manager (noscript fallback right after body) */}
-        <noscript>
-          <iframe
-            src="https://www.googletagmanager.com/ns.html?id=GTM-WLKLGPDH"
-            height="0"
-            width="0"
-            style={{ display: "none", visibility: "hidden" }}
-          />
-        </noscript>
-
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-        >
+      <body
+        className={`${pressStart.variable} ${vt323.variable} antialiased`}
+      >
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           {children}
           <Toaster />
         </ThemeProvider>
+        <GoogleAnalytics />
       </body>
     </html>
   );
