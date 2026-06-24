@@ -43,21 +43,50 @@ router.get("/health", requireAuth, (_req, res) => {
 
 router.get("/dashboard", requireAuth, async (_req, res) => {
   try {
-    const [entityCount, questionCount, learningCount, feedbackCount, gameWon, gameLost] = await Promise.all([
+    const [
+      entityCount, questionCount, learningCount, pendingLearningCount,
+      feedbackCount, gameWon, gameLost, categoryRows, recentRows,
+    ] = await Promise.all([
       db.select({ count: sql<number>`count(*)` }).from(entities),
       db.select({ count: sql<number>`count(*)` }).from(questions),
+      db.select({ count: sql<number>`count(*)` }).from(learnings),
       db.select({ count: sql<number>`count(*)` }).from(learnings).where(eq(learnings.status, "pending")),
       db.select({ count: sql<number>`count(*)` }).from(feedback),
       db.select({ count: sql<number>`count(*)` }).from(gameResults).where(eq(gameResults.won, true)),
       db.select({ count: sql<number>`count(*)` }).from(gameResults).where(eq(gameResults.won, false)),
+      db.select({
+        name: categories.name, slug: categories.slug, color: categories.color, icon: categories.icon,
+        count: sql<number>`count(${entities.id})`,
+      }).from(categories)
+        .leftJoin(entities, eq(entities.categoryId, categories.id))
+        .groupBy(categories.id, categories.name, categories.slug, categories.color, categories.icon)
+        .orderBy(categories.sortOrder),
+      db.select({
+        id: gameResults.id, category: gameResults.category,
+        questionCount: gameResults.questionCount, won: gameResults.won,
+        guessedEntity: gameResults.guessedEntity, correctEntity: gameResults.correctEntity,
+        createdAt: gameResults.createdAt,
+      }).from(gameResults).orderBy(desc(gameResults.createdAt)).limit(10),
     ]);
+
+    const totalWon = Number(gameWon[0]?.count ?? 0);
+    const totalLost = Number(gameLost[0]?.count ?? 0);
+    const totalGames = totalWon + totalLost;
+
     res.json({
-      entities: Number(entityCount[0]?.count ?? 0),
-      questions: Number(questionCount[0]?.count ?? 0),
-      pendingLearnings: Number(learningCount[0]?.count ?? 0),
-      feedback: Number(feedbackCount[0]?.count ?? 0),
-      gamesWon: Number(gameWon[0]?.count ?? 0),
-      gamesLost: Number(gameLost[0]?.count ?? 0),
+      stats: {
+        totalEntities: Number(entityCount[0]?.count ?? 0),
+        totalQuestions: Number(questionCount[0]?.count ?? 0),
+        totalGames,
+        totalWon,
+        totalLost,
+        winRate: totalGames > 0 ? Math.round((totalWon / totalGames) * 100) : 0,
+        totalLearnings: Number(learningCount[0]?.count ?? 0),
+        pendingLearnings: Number(pendingLearningCount[0]?.count ?? 0),
+        totalFeedback: Number(feedbackCount[0]?.count ?? 0),
+      },
+      categories: categoryRows.map((c) => ({ ...c, count: Number(c.count) })),
+      recentResults: recentRows,
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
