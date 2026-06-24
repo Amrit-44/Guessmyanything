@@ -4,4 +4,4 @@ Allow: /
 Disallow: /admin-4454
 Disallow: /api/
 
-Sitemap: https://guessmyanything.vercel.app/sitemap1.xml
+Sitemap: https://guessmyanything.vercel.app/sitemap.xml
