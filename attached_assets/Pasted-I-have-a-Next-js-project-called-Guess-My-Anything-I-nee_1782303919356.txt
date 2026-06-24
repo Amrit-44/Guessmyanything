@@ -1,0 +1,324 @@
+I have a Next.js project called "Guess My Anything." I need to add ALL the following entities to my database with proper tags, attributes, and intelligent questions so the engine can guess them with 95% accuracy in 15-20 questions.
+
+📦 DATA TO ADD:
+1. COUNTRIES (199) - Complete List
+(I will paste the 199 country list below - see attached data)
+
+2. SPORTS (100) - Complete List
+(I will paste the 100 sports list below - see attached data)
+
+3. ANIMALS (120) - Complete List
+(I will paste the 120 animals list below - see attached data)
+
+4. JOBS (150) - Complete List
+(I will paste the 150 jobs list below - see attached data)
+
+🧠 TAGGING SYSTEM (Apply to ALL Entities):
+For every single entity, assign tags from these categories:
+
+Attribute	Tags (pick one or more)
+Continent	Africa, Asia, Europe, North_America, South_America, Australia, Antarctica, Global
+Climate	Tropical, Temperate, Cold, Arid, Mediterranean, Polar, Continental
+Habitat/Environment	Land, Water, Air, Urban, Rural, Desert, Jungle, Forest, Grassland, Mountains, Ocean, Freshwater, Underground
+Size	Tiny, Small, Medium, Large, Massive
+Speed	Slow, Average, Fast, Very_Fast
+Diet	Carnivore, Herbivore, Omnivore, Insectivore, Piscivore, N/A
+Domestication	Wild, Domesticated, Pet, Farm, Zoo_Common
+Body Cover	Fur, Feathers, Scales, Skin, Shell, Exoskeleton, None
+Unique Ability	Venomous, Poisonous, Flight, Swims_Well, Camouflage, Horns, Tusks, Claws, Tail, Bioluminescent, Vocalization, Social
+Industry (Jobs)	Technology, Healthcare, Education, Finance, Construction, Retail, Hospitality, Manufacturing, Transportation, Agriculture, Entertainment, Legal, Government, Arts, Science, Military, Sports, Media, Real Estate, Energy, Food, Fashion, Automotive, Aviation, Maritime
+Work Environment (Jobs)	Indoor, Outdoor, Hybrid, Remote, Office, Hospital, School, Restaurant, Factory, Warehouse, Store, Laboratory, Studio, Courtroom, Field, Vehicle, Aircraft, Ship
+Education Level (Jobs)	None, High_School, Associate, Bachelor, Master, Doctorate, Certification, Trade_School
+Sports Category	Team, Individual, Contact, NonContact, Indoor, Outdoor, Water, Winter, Summer, Extreme, Olympic, Traditional
+Sports Equipment	Ball, Stick, Racket, Bat, Protective_Gear, Watercraft, Board, Skis, Skates, Gloves, Shoes, None
+❓ QUESTION GENERATION (Natural & Understandable):
+For each attribute, generate simple, natural questions that users understand:
+
+Attribute	Question Example
+Continent	"Is it from Africa?"
+Climate	"Does it live in a tropical climate?"
+Habitat	"Does it live in the ocean?"
+Size	"Is it bigger than a human?"
+Diet	"Does it eat meat?"
+Domestication	"Is it a pet or farm animal?"
+Body Cover	"Does it have fur?"
+Ability	"Can it fly?"
+Industry (Jobs)	"Do you work in technology?"
+Work Environment (Jobs)	"Do you work indoors?"
+Education (Jobs)	"Does this job require a college degree?"
+Sports Category	"Is it a team sport?"
+Sports Equipment	"Does it use a ball?"
+⚙️ ENGINE REQUIREMENTS (CRITICAL):
+Requirement	Why It Matters
+95% Accuracy	The engine must correctly guess the entity in 15-20 questions
+Smart Question Selection	Questions should split candidates roughly in half (50/50)
+Start Broad → Go Specific	First questions: Continent, Climate, Habitat, Industry. Later questions: Diet, Size, Unique Ability
+Avoid Redundancy	Don't ask "Is it carnivore?" after already asking "Does it eat meat?"
+Natural Language	Questions must sound human, not robotic
+Entity Coverage	ALL entities must have at least 8-12 tags assigned
+🚨 ABSOLUTE CONSTRAINTS (DO NOT BREAK):
+FORBIDDEN: Do not touch the existing game engine, tag-matching algorithm, entropy scoring, or question selection logic.
+
+FORBIDDEN: Do not alter the UI, components, or pages in the app/ directory.
+
+FORBIDDEN: Do not change the Admin Panel authentication (/admin-4454).
+
+FORBIDDEN: Do not delete or modify existing data in the database (Jobs, Countries, Animals, Sports, Age must remain intact).
+
+ALLOWED: You may ONLY create new seed files or update existing seed files to add the new entities with their tags.
+
+MUST: Maintain 95%+ accuracy for ALL categories.
+
+MUST: Use the existing Prisma schema—do not change table structures unless absolutely necessary.
+
+MUST: Provide questions that are easy to understand and natural-sounding.
+
+📋 TASK SUMMARY:
+Read the lists of Countries, Sports, Animals, and Jobs provided below.
+
+Assign appropriate tags (from the tagging system above) to EACH entity.
+
+Generate natural questions for each tag/attribute.
+
+Create a complete seed file (prisma/seed-all-entities.ts) that inserts ALL entities with their tags into the database.
+
+Update package.json with the seed command (use bun since my project uses Bun).
+
+Provide step-by-step terminal commands to run the seed successfully.
+
+ALLOWED: You may ONLY create new seed files or update existing seed files to add the new entities with their tags.
+
+⚠️ CRITICAL SEED ARRAYS REQUIRING SPLIT CONFIG: Because mapping 569 total entities across 4 massive categories will cause the AI text generation to hit a hard context limit, please divide the work into four separate files: seed-countries.ts, seed-sports.ts, seed-animals.ts, and seed-jobs.ts. Then, update setup.ts to execute them sequentially using bun prisma/seed-X.ts.
+
+🗂️ SCHEMA COMPLIANCE: Ensure all questions generated are structured to match my exact Question model, binding the string logic specifically to the primaryTagId relation so the existing entropy engine can fetch them correctly.
+
+✅ ACCEPTANCE CRITERIA:
+All 199 Countries are in the database with proper tags.
+
+All 100 Sports are in the database with proper tags.
+
+All 120 Animals are in the database with proper tags.
+
+All 150 Jobs are in the database with proper tags.
+
+Each entity has 8-12 tags assigned.
+
+The engine can guess any entity with 95%+ accuracy.
+
+Questions are natural and easy to understand.
+
+No existing functionality (UI, engine, admin) is broken.
+
+Running the seed file successfully populates ALL data.
+
+Now, process the data lists below and provide the complete seed file and instructions.
+
+.
+
+🌍 COUNTRIES (199) - Complete List
+<details> <summary><b>Click to expand full country list</b></summary>
+#	Country	#	Country	#	Country
+1	Afghanistan	68	Hungary	135	Romania
+2	Albania	69	Iceland	136	Russia
+3	Algeria	70	India	137	Rwanda
+4	Andorra	71	Indonesia	138	Saint Kitts and Nevis
+5	Angola	72	Iran	139	Saint Lucia
+6	Antigua and Barbuda	73	Iraq	140	Saint Vincent and the Grenadines
+7	Argentina	74	Ireland	141	Samoa
+8	Armenia	75	Israel	142	San Marino
+9	Australia	76	Italy	143	Sao Tome and Principe
+10	Austria	77	Jamaica	144	Saudi Arabia
+11	Azerbaijan	78	Japan	145	Senegal
+12	Bahamas	79	Jordan	146	Serbia
+13	Bahrain	80	Kazakhstan	147	Seychelles
+14	Bangladesh	81	Kenya	148	Sierra Leone
+15	Barbados	82	Kiribati	149	Singapore
+16	Belarus	83	Korea (North)	150	Slovakia
+17	Belgium	84	Korea (South)	151	Slovenia
+18	Belize	85	Kuwait	152	Solomon Islands
+19	Benin	86	Kyrgyzstan	153	Somalia
+20	Bhutan	87	Laos	154	South Africa
+21	Bolivia	88	Latvia	155	South Sudan
+22	Bosnia and Herzegovina	89	Lebanon	156	Spain
+23	Botswana	90	Lesotho	157	Sri Lanka
+24	Brazil	91	Liberia	158	Sudan
+25	Brunei	92	Libya	159	Suriname
+26	Bulgaria	93	Liechtenstein	160	Sweden
+27	Burkina Faso	94	Lithuania	161	Switzerland
+28	Burundi	95	Luxembourg	162	Syria
+29	Cabo Verde	96	Madagascar	163	Tajikistan
+30	Cambodia	97	Malawi	164	Tanzania
+31	Cameroon	98	Malaysia	165	Thailand
+32	Canada	99	Maldives	166	Togo
+33	Central African Republic	100	Mali	167	Tonga
+34	Chad	101	Malta	168	Trinidad and Tobago
+35	Chile	102	Marshall Islands	169	Tunisia
+36	China	103	Mauritania	170	Turkey
+37	Colombia	104	Mauritius	171	Turkmenistan
+38	Comoros	105	Mexico	172	Tuvalu
+39	Congo (DRC)	106	Micronesia	173	Uganda
+40	Congo (Republic)	107	Moldova	174	Ukraine
+41	Costa Rica	108	Monaco	175	United Arab Emirates
+42	Croatia	109	Mongolia	176	United Kingdom
+43	Cuba	110	Montenegro	177	United States
+44	Cyprus	111	Morocco	178	Uruguay
+45	Czech Republic	112	Mozambique	179	Uzbekistan
+46	Denmark	113	Myanmar	180	Vanuatu
+47	Djibouti	114	Namibia	181	Vatican City
+48	Dominica	115	Nauru	182	Venezuela
+49	Dominican Republic	116	Nepal	183	Vietnam
+50	Ecuador	117	Netherlands	184	Yemen
+51	Egypt	118	New Zealand	185	Zambia
+52	El Salvador	119	Nicaragua	186	Zimbabwe
+53	Equatorial Guinea	120	Niger		
+54	Eritrea	121	Nigeria		
+55	Estonia	122	North Macedonia		
+56	Eswatini	123	Norway		
+57	Ethiopia	124	Oman		
+58	Fiji	125	Pakistan		
+59	Finland	126	Palau		
+60	France	127	Palestine		
+61	Gabon	128	Panama		
+62	Gambia	129	Papua New Guinea		
+63	Georgia	130	Paraguay		
+64	Germany	131	Peru		
+65	Ghana	132	Philippines		
+66	Greece	133	Poland		
+67	Grenada	134	Portugal		
+</details>
+⚽ SPORTS (100) - Complete List
+<details> <summary><b>Click to expand full sports list</b></summary>
+#	Sport	#	Sport	#	Sport
+1	Archery	35	Gymnastics	69	Rugby Union
+2	Athletics (Track)	36	Handball	70	Sailing
+3	Badminton	37	High Jump	71	Shooting
+4	Baseball	38	Horse Racing	72	Short Track Speed Skating
+5	Basketball	39	Ice Hockey	73	Skateboarding
+6	Beach Volleyball	40	Judo	74	Ski Jumping
+7	Biathlon	41	Jujitsu	75	Skeleton
+8	Bobsleigh	42	Karate	76	Skiing (Alpine)
+9	Boxing	43	Kickboxing	77	Skiing (Cross-Country)
+10	Breaking (Breakdance)	44	Kitesurfing	78	Snowboarding
+11	Canoeing	45	Lacrosse	79	Softball
+12	Cricket	46	Long Jump	80	Speed Skating
+13	CrossFit	47	Luge	81	Squash
+14	Curling	48	Marathon	82	Streetball
+15	Cycling (BMX)	49	Martial Arts	83	Sumo Wrestling
+16	Cycling (Mountain)	50	Modern Pentathlon	84	Surfing
+17	Cycling (Road)	51	Muay Thai	85	Swimming
+18	Cycling (Track)	52	Netball	86	Table Tennis
+19	Darts	53	Nordic Combined	87	Taekwondo
+20	Decathlon	54	Olympic Weightlifting	88	Tennis
+21	Diving	55	Orienteering	89	Trampoline
+22	Dodgeball	56	Painting	90	Triathlon
+23	Equestrian (Eventing)	57	Paragliding	91	Ultimate Frisbee
+24	Equestrian (Jumping)	58	Parkour	92	Volleyball
+25	Equestrian (Dressage)	59	Pickleball	93	Water Polo
+26	Fencing	60	Pole Vault	94	Weightlifting
+27	Field Hockey	61	Polo	95	Windsurfing
+28	Figure Skating	62	Powerlifting	96	Wrestling (Freestyle)
+29	Football (Soccer)	63	Racquetball	97	Wrestling (Greco-Roman)
+30	Freestyle Skiing	64	Rowing	98	Wushu
+31	Futsal	65	Rugby Sevens	99	Yoga
+32	Golf	66	Rugby League	100	Zumba
+33	Greco-Roman Wrestling	67	Running		
+34	Handball (Beach)	68	Running (Ultra)		
+</details>
+🦁 ANIMALS (120) - Complete List
+<details> <summary><b>Click to expand full animals list</b></summary>
+#	Animal	#	Animal	#	Animal
+1	African Elephant	41	Eagle	81	Ostrich
+2	African Wild Dog	42	Eel (Moray)	82	Otter
+3	Alligator (American)	43	Eel (Electric)	83	Owl (Great Horned)
+4	Alpaca	44	Egret	84	Panda (Giant)
+5	Anaconda (Green)	45	Elk	85	Panda (Red)
+6	Angelfish	46	Emu	86	Pangolin
+7	Anteater	47	Falcon (Peregrine)	87	Panther
+8	Antelope	48	Flamingo	88	Parrot (Macaw)
+9	Armadillo	49	Fox (Arctic)	89	Peacock
+10	Axolotl	50	Fox (Red)	90	Pelican
+11	Baboon	51	Frog (Poison Dart)	91	Penguin (Emperor)
+12	Badger	52	Gazelle	92	Platypus
+13	Bat (Fruit)	53	Gila Monster	93	Polar Bear
+14	Bear (Grizzly)	54	Giraffe	94	Porcupine
+15	Bear (Polar)	55	Goat (Mountain)	95	Pufferfish
+16	Bee (Honey)	56	Gorilla	96	Python (Reticulated)
+17	Beetle (Goliath)	57	Hamster	97	Rabbit
+18	Bison	58	Hawk	98	Rattlesnake
+19	Black Widow Spider	59	Hedgehog	99	Raven
+20	Blue Whale	60	Hippopotamus	100	Rhinoceros
+21	Bumblebee	61	Horse	101	Salmon
+22	Butterfly (Monarch)	62	Hummingbird	102	Scorpion
+23	Camel	63	Hyena	103	Sea Lion
+24	Capybara	64	Iguana (Marine)	104	Seahorse
+25	Cassowary	65	Jaguar	105	Seal
+26	Cat	66	Jellyfish	106	Shark (Great White)
+27	Centipede	67	Kangaroo	107	Shark (Hammerhead)
+28	Cheetah	68	Koala	108	Sloth
+29	Chimpanzee	69	Komodo Dragon	109	Snail
+30	Clownfish	70	Leopard	110	Squid (Giant)
+31	Cobra (King)	71	Lion	111	Starfish
+32	Cow	72	Lionfish	112	Stingray
+33	Coyote	73	Lobster	113	Swan
+34	Crab	74	Llama	114	Tarantula
+35	Crocodile (Saltwater)	75	Lynx	115	Tasmanian Devil
+36	Crow	76	Mamba (Black)	116	Tiger
+37	Deer	77	Manta Ray	117	Tortoise (Galapagos)
+38	Dinosaur (T-Rex)	78	Meerkat	118	Toucan
+39	Dog	79	Moose	119	Turtle (Green Sea)
+40	Dolphin	80	Octopus	120	Vulture
+</details>
+💼 JOBS (150) - Complete List
+<details> <summary><b>Click to expand full jobs list</b></summary>
+#	Job	#	Job	#	Job
+1	Accountant	51	Fashion Designer	101	Physical Therapist
+2	Actor	52	Firefighter	102	Pilot
+3	Actuary	53	Fisherman	103	Plumber
+4	Acupuncturist	54	Fitness Trainer	104	Police Officer
+5	Administrator	55	Flight Attendant	105	Politician
+6	Advertising Manager	56	Forensic Scientist	106	Postman
+7	Aerospace Engineer	57	Game Developer	107	Preschool Teacher
+8	Agricultural Scientist	58	Game Warden	108	Private Investigator
+9	Air Traffic Controller	59	GIS Specialist	109	Producer (Film)
+10	Analyst (Data)	60	Graphic Designer	110	Product Manager
+11	Anesthesiologist	61	Hairdresser	111	Programmer
+12	Animator	62	Health Inspector	112	Project Manager
+13	Archaeologist	63	Heart Surgeon	113	Psychiatrist
+14	Architect	64	Historian	114	Psychologist
+15	Archivist	65	Home Inspector	115	Public Relations Manager
+16	Artist	66	Horse Trainer	116	Real Estate Agent
+17	Astronaut	67	Hotel Manager	117	Receptionist
+18	Astronomer	68	HR Manager	118	Recruiter
+19	Audiologist	69	Human Resources	119	Registered Nurse
+20	Author	70	Illustrator	120	Research Scientist
+21	Baker	71	Industrial Designer	121	Retail Manager
+22	Bank Teller	72	Insurance Agent	122	Roofer
+23	Barber	73	Interior Designer	123	Sales Representative
+24	Bartender	74	Interpreter	124	Scientist
+25	Biologist	75	IT Support Specialist	125	Security Guard
+26	Blacksmith	76	Janitor	126	Ship Captain
+27	Blogger	77	Jewelry Designer	127	Social Worker
+28	Bookkeeper	78	Journalist	128	Software Engineer
+29	Botanist	79	Judge	129	Soldier
+30	Bricklayer	80	Lab Technician	130	Speech Therapist
+31	Business Analyst	81	Landscaper	131	Sports Coach
+32	Butcher	82	Lawyer	132	Statistician
+33	Carpenter	83	Librarian	133	Stockbroker
+34	Cartographer	84	Lifeguard	134	Surgeon
+35	CEO	85	Loan Officer	135	Surveyor
+36	Chemist	86	Locksmith	136	Tailor
+37	Chief Technology Officer	87	Magician	137	Taxi Driver
+38	Chiropractor	88	Makeup Artist	138	Teacher
+39	Civil Engineer	89	Management Consultant	139	Technical Writer
+40	Cleaner	90	Marine Biologist	140	Therapist
+41	Commercial Diver	91	Massage Therapist	141	Travel Agent
+42	Consultant	92	Mathematician	142	Truck Driver
+43	Copywriter	93	Mechanic	143	Tutor
+44	Criminal Investigator	94	Medical Assistant	144	Underwriter
+45	Data Scientist	95	Meteorologist	145	Urban Planner
+46	Dental Hygienist	96	Microbiologist	146	Veterinarian
+47	Dentist	97	Model	147	Waiter
+48	Dermatologist	98	Musician	148	Web Developer
+49	Designer (UX/UI)	99	Optometrist	149	Welder
+50	Dietitian	100	Pharmacist	150	Yoga Instructor
+</details>
