@@ -1,0 +1,47 @@
+I am a developer working on "Guess My Anything," a Next.js project imported from GitHub to Replit. The frontend UI and the core game engine (question selection, tag-matching, entropy scoring) are 100% functional and perfect.
+
+THE PROBLEM:
+
+The website loads, but the database is completely empty. There are no Jobs, no Animals, no Countries, no Sports, and no Age data. Because there is no data, clicking "Play" on any category does nothing. I have all the seed files (seed.ts, setup.ts, upgrade-jobs.ts, etc.) inside the prisma folder, but the data is not populating into the database.
+
+YOUR MISSION (Fix the Data, NOT the Code):
+
+NOTE ON DATABASE CONFLICT: The codebase was originally configured for a Turso Edge/Wasm driver, but I am connecting it to Neon PostgreSQL. When configuring the Prisma Client and running the seed files, ensure you strip out any old Turso/libSQL edge adapters from src/lib/db.ts and set engineType = "library" in schema.prisma so the standard PostgreSQL Prisma client can instantiate smoothly in the Bun environment without crashing.
+
+I need you to strictly focus on connecting the database and running the seed files.
+
+READ all my Prisma seed files (seed.ts, setup.ts, upgrade-jobs.ts, upgrade-jobs-expanded.ts, upgrade-categories.ts) to confirm the data structure.
+
+TELL ME exactly which seed file contains the master list of all data (jobs, animals, countries, sports, age).
+
+CONFIGURE my package.json to include the correct prisma.seed command (I am using Bun, not Node).
+
+PROVIDE the exact sequence of terminal commands I need to copy-paste into the Replit Shell to:
+
+Install dependencies.
+
+Generate the Prisma Client.
+
+Push the schema to the database.
+
+Successfully seed ALL the data.
+
+CHECK that my schema.prisma matches the seed files to prevent errors.
+
+🚨 ABSOLUTE CONSTRAINTS (READ CAREFULLY - DO NOT VIOLATE):
+
+You are FORBIDDEN from making any changes to the following parts of my code:
+
+FORBIDDEN: Do not touch the app/ directory (the game UI, pages, or components).
+
+FORBIDDEN: Do not touch the lib/ or utils/ directory (the game engine, question logic, tag-matching algorithms, or entropy engine).
+
+FORBIDDEN: Do not change the logic of how questions are asked.
+
+FORBIDDEN: Do not rename my database tables or change the schema structure unless absolutely necessary.
+
+FORBIDDEN: Do not alter the Admin Panel authentication (/admin-4454).
+
+ALLOWED: You are ONLY allowed to edit the prisma/ folder (specifically the seed files to fix data insertion) and the package.json (strictly to add the seed command).
+
+DO NOT rewrite the entire codebase. DO NOT ruin the existing functionality. Focus only on making the data appear in the database.
